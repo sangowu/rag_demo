@@ -55,8 +55,9 @@ class VectorStore:
         # 用 BGEM3FlagModel 加载模型，use_fp16=True 节省显存
         if self._model is None:
             from FlagEmbedding import BGEM3FlagModel
+            model_name = _vs_cfg.get("embedding_model_path") or _vs_cfg["embedding_model"]
             self._model = BGEM3FlagModel(
-                _vs_cfg["embedding_model"],
+                model_name,
                 use_fp16=True
             )
 

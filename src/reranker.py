@@ -26,10 +26,11 @@ class Reranker:
         """懒加载 FlagReranker，只初始化一次。"""
         if self._model is None:
             from FlagEmbedding import FlagReranker
+            model_name = _cfg.get("model_path") or "BAAI/bge-reranker-v2-m3"
             self._model = FlagReranker(
-                'BAAI/bge-reranker-v2-m3',
+                model_name,
                 use_fp16=True,
-                devices=["cuda:0"], 
+                devices=["cuda:0"],
             )
 
     def rerank(self, query: str, chunks: list[dict], top_k: int = 5) -> list[dict]:

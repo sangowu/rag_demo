@@ -7,7 +7,7 @@ vector_store:
   chroma_path: "data/chroma/"
   collection_name: "finqa"
   embedding_model: "BAAI/bge-m3"
-  embedding_model_path: "models/BAAI/bge-m3"
+  embedding_model_path: "/root/autodl-tmp/models/BAAI/bge-m3"
   embed_batch_size: 32
   embed_max_token: 1024
   store_sparse: true               # 是否在 metadata 中存储 sparse weights（m3_hybrid 需要）
@@ -40,5 +40,9 @@ llm_qa_gen:
   temperature: 0.7
   max_tokens: 512
 
+reranker:
+  model_path: "/root/autodl-tmp/models/BAAI/bge-reranker-v2-m3"
+
 agent:
   max_retries: 2                   # Reflector 最大重试次数
+
