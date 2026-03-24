@@ -73,12 +73,13 @@ class VectorStore:
         if self._model is None:
             self._load_model()
         results = self._model.encode_corpus(
-            texts, 
-            batch_size=_vs_cfg["embed_batch_size"], 
+            texts,
+            batch_size=_vs_cfg["embed_batch_size"],
             max_length=_vs_cfg["embed_max_token"],
             return_dense=True,
             return_sparse=_store_sparse,
-            return_colbert_vecs=False
+            return_colbert_vecs=False,
+            show_progress_bar=False,
         )
 
         return {
@@ -102,7 +103,8 @@ class VectorStore:
             [query],
             return_dense=True,
             return_sparse=_store_sparse,
-            return_colbert_vecs=False
+            return_colbert_vecs=False,
+            show_progress_bar=False,
         )
         sparse_data = results.get("lexical_weights")
         return {
