@@ -1,0 +1,244 @@
+{
+  "n": 200,
+  "top_k": 5,
+  "hit@5": 0.705,
+  "mrr@5": 0.5664166666666667,
+  "misses": [
+    {
+      "doc_id": "ADI_2009_page_49.pdf",
+      "query": "what is the the interest expense in 2009?"
+    },
+    {
+      "doc_id": "AAL_2018_page_13.pdf",
+      "query": "what was the total operating expenses in 2018 in millions"
+    },
+    {
+      "doc_id": "ETR_2008_page_313.pdf",
+      "query": "what is the growth rate in net revenue in 2008?"
+    },
+    {
+      "doc_id": "GIS_2019_page_45.pdf",
+      "query": "in 2019 what was the percent of the net earnings to the net cash provided by ope"
+    },
+    {
+      "doc_id": "CDNS_2018_page_32.pdf",
+      "query": "how is net change in cash from financing activity affected by the share repurcha"
+    },
+    {
+      "doc_id": "GIS_2008_page_83.pdf",
+      "query": "what is the change in net assets from 2007 to 2008?"
+    },
+    {
+      "doc_id": "ETR_2008_page_376.pdf",
+      "query": "what is the percent change in net revenue between 2007 and 2008?"
+    },
+    {
+      "doc_id": "SWKS_2011_page_82.pdf",
+      "query": "what was the percent of the total contractual payment obligations that was assoc"
+    },
+    {
+      "doc_id": "KHC_2017_page_21.pdf",
+      "query": "what percent of total facilities are leased?"
+    },
+    {
+      "doc_id": "MAA_2018_page_19.pdf",
+      "query": "what is the percentage of consolidated communities among the total communities?"
+    },
+    {
+      "doc_id": "ALLE_2016_page_29.pdf",
+      "query": "considering the year 2016 , what is the average revenue?"
+    },
+    {
+      "doc_id": "RE_2012_page_31.pdf",
+      "query": "as of december 31 , 2012 what was the percentage change in net reserves from 201"
+    },
+    {
+      "doc_id": "UNP_2014_page_21.pdf",
+      "query": "what percent of the share repurchases were in the fourth quarter?"
+    },
+    {
+      "doc_id": "UA_2011_page_70.pdf",
+      "query": "what was the percentage increase in the rent expense from 2010 to 2011"
+    },
+    {
+      "doc_id": "GS_2013_page_47.pdf",
+      "query": "what is the percentage change in staff number in 2013?"
+    },
+    {
+      "doc_id": "RL_2011_page_12.pdf",
+      "query": "what percentage of total doors is the europe geography?"
+    },
+    {
+      "doc_id": "ILMN_2006_page_57.pdf",
+      "query": "what is the percent of the operating leases that are due in less than year to th"
+    },
+    {
+      "doc_id": "AMT_2005_page_84.pdf",
+      "query": "assuming that intangible asset will be sold , what will be the accumulated depre"
+    },
+    {
+      "doc_id": "ETR_2004_page_216.pdf",
+      "query": "what is the percent change in receivables from or ( payables to ) the money pool"
+    },
+    {
+      "doc_id": "FRT_2009_page_124.pdf",
+      "query": "considering the years 2006-2009 , what is the value of the average additions?"
+    },
+    {
+      "doc_id": "AWK_2012_page_118.pdf",
+      "query": "how much did the company 2019s valuation allowance decrease from 2010 to 2012?"
+    },
+    {
+      "doc_id": "AAL_2015_page_74.pdf",
+      "query": "what percentage of total reorganization items net consisted of labor-deemed clai"
+    },
+    {
+      "doc_id": "BLL_2006_page_108.pdf",
+      "query": "in the equity plans for 2006 , are there more shares issued than remaining in th"
+    },
+    {
+      "doc_id": "ETR_2016_page_24.pdf",
+      "query": "what is the net change in net revenue during 2015?"
+    },
+    {
+      "doc_id": "MS_2013_page_277.pdf",
+      "query": "how many years are currently involved in tax controversies?"
+    },
+    {
+      "doc_id": "ETR_2016_page_403.pdf",
+      "query": "what is the net change in entergy new orleans 2019s receivables from the money p"
+    },
+    {
+      "doc_id": "STT_2007_page_95.pdf",
+      "query": "what is the number of outstanding shares based on the eps , ( in millions ) ?"
+    },
+    {
+      "doc_id": "INTC_2018_page_50.pdf",
+      "query": "as of december 292018 what was the percent of the payments due in less than 1 ye"
+    },
+    {
+      "doc_id": "CDW_2015_page_54.pdf",
+      "query": "operating leases are what percent of total obligations?"
+    },
+    {
+      "doc_id": "SWKS_2012_page_116.pdf",
+      "query": "what is the net chance in unrecognized tax benefits from 2011 to 2012 , ( in mil"
+    },
+    {
+      "doc_id": "C_2008_page_111.pdf",
+      "query": "what was the percentage increase in the operating lease obligations from 2009 to"
+    },
+    {
+      "doc_id": "AMAT_2018_page_31.pdf",
+      "query": "what portion of company's property is located in united states?"
+    },
+    {
+      "doc_id": "AAL_2014_page_80.pdf",
+      "query": "what was the percent of the labor-related deemed claim to the total re-organizat"
+    },
+    {
+      "doc_id": "LMT_2012_page_72.pdf",
+      "query": "in 2003 what was the ratio of the notional amount of our outstanding foreign cur"
+    },
+    {
+      "doc_id": "GPN_2007_page_97.pdf",
+      "query": "what portion of the approved securities is issued?"
+    },
+    {
+      "doc_id": "ADI_2019_page_77.pdf",
+      "query": "what is the growth rate in the r&d in 2019?"
+    },
+    {
+      "doc_id": "HUM_2018_page_46.pdf",
+      "query": "what is the lowest return for the first year of investment?"
+    },
+    {
+      "doc_id": "PKG_2004_page_23.pdf",
+      "query": "what was the operating margin for 2002?"
+    },
+    {
+      "doc_id": "LMT_2016_page_105.pdf",
+      "query": "what is the total outstanding number of shares that received dividends in 2016 ,"
+    },
+    {
+      "doc_id": "IPG_2014_page_37.pdf",
+      "query": "what was the average of short-term borrowings in 2013-2014?"
+    },
+    {
+      "doc_id": "SNA_2013_page_33.pdf",
+      "query": "how is the cash flow statement from financing activities affected by the sales o"
+    },
+    {
+      "doc_id": "MMM_2007_page_39.pdf",
+      "query": "what was percentage change in the net cash used in financing activities from 200"
+    },
+    {
+      "doc_id": "LMT_2016_page_52.pdf",
+      "query": "what is the growth rate of net sales from 2014 to 2015?"
+    },
+    {
+      "doc_id": "RSG_2008_page_114.pdf",
+      "query": "as of year ended december 31 2008 what was the number of shares available for th"
+    },
+    {
+      "doc_id": "EW_2016_page_92.pdf",
+      "query": "what is the percent change of benefits expected to be paid between 2017 and 2018"
+    },
+    {
+      "doc_id": "WELL_2016_page_61.pdf",
+      "query": "what portion of the total properties is related to triple-net?"
+    },
+    {
+      "doc_id": "DVN_2004_page_50.pdf",
+      "query": "how much of the oil production is estimated to be produced from unproved reserve"
+    },
+    {
+      "doc_id": "HUM_2015_page_46.pdf",
+      "query": "what is the highest return for the first year of the investment?"
+    },
+    {
+      "doc_id": "ETR_2016_page_324.pdf",
+      "query": "how is cash flow of entergy arkansas affected by the change in balance of money "
+    },
+    {
+      "doc_id": "LMT_2013_page_46.pdf",
+      "query": "what was the average backlog at year-end of mfc from 2011 to 2013"
+    },
+    {
+      "doc_id": "BLL_2007_page_75.pdf",
+      "query": "what is the percentage change in interest expense from 2005 to 2006?"
+    },
+    {
+      "doc_id": "AOS_2010_page_23.pdf",
+      "query": "what percentage of total aggregate contractual obligations is composed of ?"
+    },
+    {
+      "doc_id": "UPS_2015_page_35.pdf",
+      "query": "what was the percentage total cumulative return on investment for united parcel "
+    },
+    {
+      "doc_id": "JPM_2007_page_152.pdf",
+      "query": "what is the average assets ( in billions ) for each of the firm's self sponsored"
+    },
+    {
+      "doc_id": "RCL_2018_page_38.pdf",
+      "query": "what was the percentage change in the royal caribbean cruises ltd . performance "
+    },
+    {
+      "doc_id": "AON_2010_page_55.pdf",
+      "query": "what was the percentage change in the revenues from 2009 to 2010"
+    },
+    {
+      "doc_id": "RCL_2014_page_80.pdf",
+      "query": "for 2013 and 2014 , what is the mathematical range for foreign currency translat"
+    },
+    {
+      "doc_id": "HIG_2004_page_192.pdf",
+      "query": "what is the expected payment for all benefits in 2007?"
+    },
+    {
+      "doc_id": "STT_2011_page_94.pdf",
+      "query": "what percent of the total contractual cash obligations are due within the first "
+    }
+  ]
+}

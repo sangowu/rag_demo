@@ -1,0 +1,40 @@
+chunking:
+  chunk_size: 512
+  overlap: 64
+  strategy: "fixed"  # 可选: "fixed", "recursive", "semantic"
+
+vector_store:
+  chroma_path: "data/chroma/"
+  collection_name: "finqa"
+  embedding_model: "BAAI/bge-m3"
+  embedding_model_path: "models/BAAI/bge-m3"
+  embed_batch_size: 32
+  embed_max_token: 1024
+  store_sparse: true               # 是否在 metadata 中存储 sparse weights（m3_hybrid 需要）
+
+bm25:
+  index_path: "data/bm25_index.pkl"
+
+retriever:
+  mode: "custom"                   # "custom" | "m3_hybrid"
+  top_k: 5
+
+  custom:
+    alpha: 0.4                     # 1.0=纯向量, 0.0=纯BM25
+    candidate_k: 20                # rerank 前的候选数量
+
+  m3_hybrid:
+    dense_weight: 0.5
+    sparse_weight: 0.5
+    use_colbert: false             # ColBERT 存储开销大，默认关闭
+
+llm:
+  model: "Qwen/Qwen3-8B"
+  base_url: "http://localhost:8001/v1"
+  # base_url: "https://api-inference.modelscope.cn/v1"
+  api_key_env: "MODELSCOPE_API_KEY"  # 从环境变量读取
+  temperature: 0.1
+  max_tokens: 1024
+
+agent:
+  max_retries: 2                   # Reflector 最大重试次数

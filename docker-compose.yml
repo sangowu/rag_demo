@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data       # ChromaDB + BM25 索引持久化
+      - ./models:/app/models   # 本地模型复用，避免重复下载
+    environment:
+      - MODELSCOPE_API_KEY=${MODELSCOPE_API_KEY}
+    restart: unless-stopped

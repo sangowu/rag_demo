@@ -1,0 +1,25 @@
+# Core
+fastapi
+uvicorn[standard]
+pydantic
+vllm
+torch
+
+# LangGraph / LangChain
+langgraph
+langchain
+langchain-core
+langchain-openai
+
+# Retrieval
+chromadb
+rank-bm25
+FlagEmbedding
+
+# Frontend
+gradio
+
+# Config
+pyyaml
+typing-extensions
+tqdm
