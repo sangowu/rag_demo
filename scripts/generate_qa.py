@@ -31,13 +31,15 @@ from langchain_openai import ChatOpenAI
 from src.config import config
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
-_llm_cfg = config.get("llm", {})
+_llm_cfg     = config.get("llm", {})
+_llm_qa_cfg  = config.get("llm_qa_gen", {})
 _llm = ChatOpenAI(
     model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
-    temperature=0.3,
-    max_tokens=512,
+    base_url=_llm_cfg.get("base_url", "http://localhost:8001/v1"),
+    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
+    temperature=_llm_qa_cfg.get("temperature", 0.7),
+    max_tokens=_llm_qa_cfg.get("max_tokens", 512),
+    model_kwargs={"extra_body": {"top_p": 0.8, "top_k": 20, "min_p": 0.0}},
 )
 
 _DOCS_DIR    = _ROOT / "data/finqa/docs"

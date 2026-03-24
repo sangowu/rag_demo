@@ -30,10 +30,11 @@ _agent_cfg = config.get("agent", {})
 # 模块级 LLM 单例
 _llm = ChatOpenAI(
     model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
+    base_url=_llm_cfg.get("base_url", "http://localhost:8001/v1"),
+    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
     temperature=_llm_cfg.get("temperature", 0.1),
     max_tokens=_llm_cfg.get("max_tokens", 1024),
+    model_kwargs={"extra_body": {"top_p": 0.8, "top_k": 20, "min_p": 0.0}},
 )
 
 _MAX_RETRIES = _agent_cfg.get("max_retries", 2)
