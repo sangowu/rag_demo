@@ -58,7 +58,7 @@ Rules:
 - The question MUST include the company name and fiscal year (extract from doc_id or text)
 - The answer_span MUST be copied verbatim from the text, word for word
 - The answer MUST be directly readable from answer_span (no calculation needed)
-- Focus on specific financial figures (revenue, expenses, income, margins, etc.)
+- Vary question types: factual (what/who/where), trend (increased/decreased), comparison, risk factors, business strategy — not just numbers
 
 Output valid JSON only, no extra text:
 {
@@ -90,14 +90,27 @@ Answer: {answer}"""
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def _pick_chunk(doc_text: str) -> str:
-    """选取含数字最多的段落作为生成 QA 的来源。"""
+def _pick_chunk(doc_text: str, index: int = 0) -> str:
+    """
+    轮流选取不同类型的段落：
+    偶数文档选含数字最多的段落（数值型问题），
+    奇数文档选最长的非数字段落（文字型问题）。
+    """
     paragraphs = [p.strip() for p in doc_text.split("\n\n") if len(p.strip()) > 80]
     if not paragraphs:
         return doc_text[:1500]
-    scored = [(len(re.findall(r"\d", p)), p) for p in paragraphs]
-    scored.sort(reverse=True)
-    return scored[0][1][:1500]
+
+    if index % 2 == 0:
+        # 数值型：含数字最多
+        scored = sorted(paragraphs, key=lambda p: len(re.findall(r"\d", p)), reverse=True)
+    else:
+        # 文字型：最长且数字占比低的段落
+        scored = sorted(
+            paragraphs,
+            key=lambda p: len(p) * (1 - len(re.findall(r"\d", p)) / max(len(p), 1)),
+            reverse=True,
+        )
+    return scored[0][:1500]
 
 
 def _parse_json(content: str) -> dict | None:
@@ -178,10 +191,10 @@ def main():
     failed = 0
 
     with open(out_path, "w", encoding="utf-8") as out_f:
-        for path in tqdm(doc_paths, desc="Generating QA"):
+        for idx, path in enumerate(tqdm(doc_paths, desc="Generating QA")):
             doc_id     = path.stem
             doc_text   = path.read_text(encoding="utf-8")
-            chunk_text = _pick_chunk(doc_text)
+            chunk_text = _pick_chunk(doc_text, index=idx)
 
             # 第一次调用：生成
             qa = generate(doc_id, chunk_text)
