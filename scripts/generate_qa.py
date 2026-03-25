@@ -39,12 +39,12 @@ _llm = ChatOpenAI(
     api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
     temperature=_llm_qa_cfg.get("temperature", 0.7),
     max_tokens=_llm_qa_cfg.get("max_tokens", 512),
-    model_kwargs={"extra_body": {
+    extra_body={
         "top_p": 0.8,
         "top_k": 20,
         "min_p": 0.0,
         "chat_template_kwargs": {"enable_thinking": False},
-    }},
+    },
 )
 
 _DOCS_DIR    = _ROOT / "data/finqa/docs"
@@ -71,22 +71,6 @@ _GEN_HUMAN = """doc_id: {doc_id}
 
 Text:
 {chunk_text}"""
-
-_VAL_SYSTEM = """You are a QA quality checker for financial datasets.
-Evaluate whether the QA pair meets ALL of these criteria:
-1. answer_span is copied verbatim from the text (not paraphrased)
-2. answer can be read directly from answer_span (no calculation required)
-3. question includes a company name and year
-
-Output valid JSON only:
-{"valid": true/false, "reason": "one sentence"}"""
-
-_VAL_HUMAN = """Text:
-{chunk_text}
-
-Question: {question}
-Answer Span: {answer_span}
-Answer: {answer}"""
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -144,26 +128,26 @@ def generate(doc_id: str, chunk_text: str) -> dict | None:
 
 
 def validate(qa: dict, chunk_text: str) -> bool:
-    """第二次调用：验证 QA pair 质量。"""
-    try:
-        resp = _llm.invoke([
-            SystemMessage(_VAL_SYSTEM),
-            HumanMessage(_VAL_HUMAN.format(
-                chunk_text=chunk_text,
-                question=qa.get("question", ""),
-                answer_span=qa.get("answer_span", ""),
-                answer=qa.get("answer", ""),
-            )),
-        ])
-        result = _parse_json(resp.content)
-        if result and result.get("valid"):
-            return True
-        reason = result.get("reason", "unknown") if result else "parse error"
-        tqdm.write(f"  [INVALID] {reason}")
+    """规则验证 QA pair 质量，无需额外 LLM 调用。"""
+    span   = qa.get("answer_span", "").strip()
+    answer = qa.get("answer", "").strip()
+
+    # 1. answer_span 必须在原文里
+    if not span or span not in chunk_text:
+        tqdm.write(f"  [INVALID] answer_span not found in text")
         return False
-    except Exception as e:
-        tqdm.write(f"  [VAL ERROR] {e}")
+
+    # 2. answer 不能为空
+    if not answer:
+        tqdm.write(f"  [INVALID] empty answer")
         return False
+
+    # 3. span 不能太短
+    if len(span) < 15:
+        tqdm.write(f"  [INVALID] answer_span too short")
+        return False
+
+    return True
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
