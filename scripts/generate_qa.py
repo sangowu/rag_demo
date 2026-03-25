@@ -139,7 +139,7 @@ def generate(doc_id: str, chunk_text: str) -> dict | None:
         ])
         return _parse_json(resp.content)
     except Exception as e:
-        print(f"  [GEN ERROR] {e}")
+        tqdm.write(f"  [GEN ERROR] {e}")
         return None
 
 
@@ -159,10 +159,10 @@ def validate(qa: dict, chunk_text: str) -> bool:
         if result and result.get("valid"):
             return True
         reason = result.get("reason", "unknown") if result else "parse error"
-        print(f"  [INVALID] {reason}")
+        tqdm.write(f"  [INVALID] {reason}")
         return False
     except Exception as e:
-        print(f"  [VAL ERROR] {e}")
+        tqdm.write(f"  [VAL ERROR] {e}")
         return False
 
 
@@ -205,6 +205,7 @@ def main():
             # 第二次调用：验证
             if not validate(qa, chunk_text):
                 failed += 1
+                tqdm.write(f"  [FAIL] {doc_id} | span_in_text={qa.get('answer_span','')[:50]!r}")
                 continue
 
             record = {
