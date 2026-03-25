@@ -39,7 +39,12 @@ _llm = ChatOpenAI(
     api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
     temperature=_llm_qa_cfg.get("temperature", 0.7),
     max_tokens=_llm_qa_cfg.get("max_tokens", 512),
-    model_kwargs={"extra_body": {"top_p": 0.8, "top_k": 20, "min_p": 0.0}},
+    model_kwargs={"extra_body": {
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "chat_template_kwargs": {"enable_thinking": False},
+    }},
 )
 
 _DOCS_DIR    = _ROOT / "data/finqa/docs"
@@ -96,7 +101,9 @@ def _pick_chunk(doc_text: str) -> str:
 
 
 def _parse_json(content: str) -> dict | None:
-    """从 LLM 输出中提取 JSON，容忍 markdown 代码块包裹。"""
+    """从 LLM 输出中提取 JSON，容忍 think 标签和 markdown 代码块包裹。"""
+    # 去除 <think>...</think> 块
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
     content = re.sub(r"```json|```", "", content).strip()
     try:
         return json.loads(content)
