@@ -1,7 +1,7 @@
 """
 compare_evals.py
 ================
-读取 data/eval_log.jsonl，打印多版本 RAGAS 指标对比表。
+读取 data/eval_log.jsonl，打印多版本指标对比表。
 
 Usage:
     python scripts/compare_evals.py
@@ -13,7 +13,6 @@ import json
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent
-_METRICS = ["faithfulness", "context_precision", "answer_relevancy"]
 
 
 def load_log(log_path: Path) -> list[dict]:
@@ -24,38 +23,69 @@ def load_log(log_path: Path) -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
+def _f(val, fmt=".3f"):
+    if val is None or val == "":
+        return "-"
+    try:
+        return format(float(val), fmt)
+    except (TypeError, ValueError):
+        return str(val)
+
+
 def print_table(entries: list[dict]) -> None:
-    col_w = {"tag": 18, "time": 16, "n": 4, "mode": 8, "alpha": 6, "ck": 4,
-             "chunk": 6, "faith": 7, "prec": 7, "relev": 7}
-
-    header = (
-        f"{'tag':<{col_w['tag']}} {'time':<{col_w['time']}} {'n':>{col_w['n']}} "
-        f"{'mode':<{col_w['mode']}} {'alpha':>{col_w['alpha']}} {'ck':>{col_w['ck']}} "
-        f"{'chunk':>{col_w['chunk']}} {'faith':>{col_w['faith']}} "
-        f"{'c_prec':>{col_w['prec']}} {'a_relev':>{col_w['relev']}}"
-    )
-    sep = "-" * len(header)
-    print(sep)
-    print(header)
-    print(sep)
-
+    # --- RAGAS 指标 ---
+    print("\n┌─ RAGAS Metrics " + "─" * 52 + "┐")
+    hdr = f"  {'tag':<18} {'n':>4}  {'faith':>6}  {'c_prec':>6}  {'a_relev':>7}  {'alpha':>5}  {'ck':>3}  {'chunk':>5}"
+    print(hdr)
+    print("  " + "─" * (len(hdr) - 2))
     for e in entries:
-        faith = e.get("faithfulness", float("nan"))
-        prec  = e.get("context_precision", float("nan"))
-        relev = e.get("answer_relevancy", float("nan"))
         print(
-            f"{e.get('tag',''):<{col_w['tag']}} "
-            f"{e.get('time',''):<{col_w['time']}} "
-            f"{e.get('n', ''):>{col_w['n']}} "
-            f"{e.get('retriever_mode',''):>{col_w['mode']}} "
-            f"{str(e.get('alpha',''))[:5]:>{col_w['alpha']}} "
-            f"{str(e.get('candidate_k',''))[:4]:>{col_w['ck']}} "
-            f"{str(e.get('chunk_size',''))[:6]:>{col_w['chunk']}} "
-            f"{faith:>{col_w['faith']}.3f} "
-            f"{prec:>{col_w['prec']}.3f} "
-            f"{relev:>{col_w['relev']}.3f}"
+            f"  {e.get('tag',''):<18} {e.get('n','-'):>4}"
+            f"  {_f(e.get('faithfulness')):>6}"
+            f"  {_f(e.get('context_precision')):>6}"
+            f"  {_f(e.get('answer_relevancy')):>7}"
+            f"  {_f(e.get('alpha'),''):>5}"
+            f"  {str(e.get('candidate_k',''))[:3]:>3}"
+            f"  {str(e.get('chunk_size',''))[:5]:>5}"
         )
-    print(sep)
+
+    # --- 检索指标 ---
+    print("\n┌─ Retrieval Metrics (Hit@K / MRR@K) " + "─" * 31 + "┐")
+    hdr2 = f"  {'tag':<18}  {'hit@1':>5}  {'hit@3':>5}  {'hit@5':>5}  {'mrr@1':>5}  {'mrr@3':>5}  {'mrr@5':>5}"
+    print(hdr2)
+    print("  " + "─" * (len(hdr2) - 2))
+    for e in entries:
+        print(
+            f"  {e.get('tag',''):<18}"
+            f"  {_f(e.get('hit@1')):>5}"
+            f"  {_f(e.get('hit@3')):>5}"
+            f"  {_f(e.get('hit@5')):>5}"
+            f"  {_f(e.get('mrr@1')):>5}"
+            f"  {_f(e.get('mrr@3')):>5}"
+            f"  {_f(e.get('mrr@5')):>5}"
+        )
+
+    # --- 耗时 & Token ---
+    print("\n┌─ Timing & Tokens " + "─" * 50 + "┐")
+    hdr3 = (
+        f"  {'tag':<18}  {'t_retr':>6}  {'t_gen':>5}  {'t_ragas':>7}"
+        f"  {'t_tot':>5}  {'p_tok':>6}  {'c_tok':>6}  {'avg_p':>5}  {'avg_c':>5}"
+    )
+    print(hdr3)
+    print("  " + "─" * (len(hdr3) - 2))
+    for e in entries:
+        print(
+            f"  {e.get('tag',''):<18}"
+            f"  {_f(e.get('t_retrieval_s'),'.1f'):>6}s"
+            f"  {_f(e.get('t_generation_s'),'.1f'):>5}s"
+            f"  {_f(e.get('t_ragas_s'),'.1f'):>7}s"
+            f"  {_f(e.get('t_total_s'),'.1f'):>5}s"
+            f"  {_f(e.get('prompt_tokens'),'.0f'):>6}"
+            f"  {_f(e.get('completion_tokens'),'.0f'):>6}"
+            f"  {_f(e.get('avg_prompt_tokens'),'.0f'):>5}"
+            f"  {_f(e.get('avg_completion_tokens'),'.0f'):>5}"
+        )
+    print()
 
 
 def parse_args():
