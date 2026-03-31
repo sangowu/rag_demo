@@ -25,11 +25,10 @@ from tqdm import tqdm
 _ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
 
-from datasets import Dataset
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
-from ragas import evaluate
+from ragas import EvaluationDataset, SingleTurnSample, evaluate
 from ragas.embeddings import HuggingFaceEmbeddings
 from ragas.llms import llm_factory
 from ragas.metrics.collections import AnswerRelevancy, ContextPrecision, Faithfulness
@@ -88,27 +87,22 @@ def run_eval(n: int, output_path: Path) -> dict:
         eval_records = [json.loads(line) for line in f if line.strip()]
     samples = eval_records[:n]
 
-    questions, answers, contexts_list, ground_truths = [], [], [], []
+    ragas_samples = []
 
-    for i, record in enumerate(tqdm(samples, desc="Evaluating")):
+    for record in tqdm(samples, desc="Evaluating"):
         question     = record.get("question", "")
         ground_truth = record.get("answer", "")
-        chunks = retriever.search(question)
+        chunks   = retriever.search(question)
         contexts = [c["text"] for c in chunks]
-        answer = _generate_answer(question, contexts)
-        questions.append(question)
-        answers.append(answer)
-        contexts_list.append(contexts)
-        ground_truths.append(ground_truth)
+        answer   = _generate_answer(question, contexts)
+        ragas_samples.append(SingleTurnSample(
+            user_input=question,
+            response=answer,
+            retrieved_contexts=contexts,
+            reference=ground_truth,
+        ))
 
-
-    # 构造 RAGAS Dataset
-    dataset = Dataset.from_dict({
-        "question":    questions,
-        "answer":      answers,
-        "contexts":    contexts_list,
-        "ground_truth": ground_truths,
-    })
+    dataset = EvaluationDataset(samples=ragas_samples)
 
     _openai_client = OpenAI(
         base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
@@ -121,13 +115,14 @@ def run_eval(n: int, output_path: Path) -> dict:
     _vs_cfg = config.get("vector_store", {})
     emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")
     ragas_emb = HuggingFaceEmbeddings(model=emb_model)
-    metrics = [
-        Faithfulness(llm=ragas_llm),
-        ContextPrecision(llm=ragas_llm),
-        AnswerRelevancy(llm=ragas_llm, embeddings=ragas_emb),
-    ]
-    result = evaluate(dataset, metrics=metrics)
-    scores = result.to_pandas().mean().to_dict() 
+    metrics = [Faithfulness(), ContextPrecision(), AnswerRelevancy()]
+    result = evaluate(
+        dataset,
+        metrics=metrics,
+        llm=ragas_llm,
+        embeddings=ragas_emb,
+    )
+    scores = result.to_pandas().mean().to_dict()
     print(f"Score: {scores}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
