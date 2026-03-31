@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from tqdm import tqdm
@@ -169,6 +170,23 @@ def run_eval(n: int, output_path: Path) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(scores, f, indent=2)
+
+    # 追加到实验日志，方便多版本对比
+    log_entry = {
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "tag": getattr(run_eval, "_tag", "default"),
+        "n": n,
+        "retriever_mode": config.get("retriever", {}).get("mode"),
+        "alpha": config.get("retriever", {}).get("custom", {}).get("alpha"),
+        "candidate_k": config.get("retriever", {}).get("custom", {}).get("candidate_k"),
+        "chunk_size": config.get("chunking", {}).get("chunk_size"),
+        **scores,
+    }
+    log_path = output_path.parent / "eval_log.jsonl"
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    print(f"Log appended → {log_path}")
+
     return scores
 
 
@@ -176,6 +194,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n",      type=int,   default=10,
                         help="评测样本数（默认10）")
+    parser.add_argument("--tag",    type=str,   default="default",
+                        help="实验标签，用于日志对比（如 baseline / alpha0.6 / chunk256）")
     parser.add_argument("--output", type=str,   default="data/eval_results.json",
                         help="结果保存路径")
     return parser.parse_args()
@@ -183,4 +203,5 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    run_eval._tag = args.tag
     run_eval(n=args.n, output_path=_ROOT / args.output)
