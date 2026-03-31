@@ -27,10 +27,9 @@ sys.path.insert(0, str(_ROOT))
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from openai import OpenAI
 from ragas import EvaluationDataset, SingleTurnSample, evaluate
 from ragas.embeddings import HuggingFaceEmbeddings
-from ragas.llms import llm_factory
+from ragas.llms import LangchainLLMWrapper
 from ragas.metrics.collections import AnswerRelevancy, ContextPrecision, Faithfulness
 
 from src.bm25_store import BM25Store
@@ -104,14 +103,7 @@ def run_eval(n: int, output_path: Path) -> dict:
 
     dataset = EvaluationDataset(samples=ragas_samples)
 
-    _openai_client = OpenAI(
-        base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-        api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
-    )
-    ragas_llm = llm_factory(
-        model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-        client=_openai_client,
-    )
+    ragas_llm = LangchainLLMWrapper(_llm)
     _vs_cfg = config.get("vector_store", {})
     emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")
     ragas_emb = HuggingFaceEmbeddings(model=emb_model)
