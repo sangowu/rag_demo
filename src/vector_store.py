@@ -22,6 +22,7 @@ Usage:
 """
 from pathlib import Path
 import json
+import os
 from src.config import config
 
 _ROOT = Path(__file__).parent.parent
@@ -79,7 +80,6 @@ class VectorStore:
             return_dense=True,
             return_sparse=_store_sparse,
             return_colbert_vecs=False,
-            show_progress_bar=False,
         )
 
         return {
@@ -104,7 +104,6 @@ class VectorStore:
             return_dense=True,
             return_sparse=_store_sparse,
             return_colbert_vecs=False,
-            show_progress_bar=False,
         )
         sparse_data = results.get("lexical_weights")
         return {
