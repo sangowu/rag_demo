@@ -120,7 +120,7 @@ def run_eval(n: int, output_path: Path) -> dict:
     )
     _vs_cfg = config.get("vector_store", {})
     emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")
-    ragas_emb = HuggingFaceEmbeddings(model_name=emb_model)
+    ragas_emb = HuggingFaceEmbeddings(model=emb_model)
     metrics = [
         Faithfulness(llm=ragas_llm),
         ContextPrecision(llm=ragas_llm),
