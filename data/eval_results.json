@@ -1,5 +1,19 @@
 {
-  "faithfulness": 0.75,
-  "context_precision": 0.4788888888549259,
-  "answer_relevancy": 0.5656493806978556
+  "faithfulness": 0.675,
+  "context_precision": 0.5679166666199688,
+  "answer_relevancy": 0.5656493806978556,
+  "hit@1": 0.48,
+  "mrr@1": 0.48,
+  "hit@3": 0.655,
+  "mrr@3": 0.5567,
+  "hit@5": 0.715,
+  "mrr@5": 0.5702,
+  "t_retrieval_s": 114.77,
+  "t_generation_s": 17.28,
+  "t_ragas_s": 296.23,
+  "t_total_s": 428.28,
+  "prompt_tokens": 18596,
+  "completion_tokens": 825,
+  "avg_prompt_tokens": 1859.6,
+  "avg_completion_tokens": 82.5
 }
