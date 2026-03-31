@@ -48,6 +48,7 @@ _llm = ChatOpenAI(
     api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
     temperature=_llm_cfg.get("temperature", 0.1),
     max_tokens=_llm_cfg.get("max_tokens", 1024),
+    extra_body={"enable_thinking": False},
 )
 
 

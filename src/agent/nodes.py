@@ -34,7 +34,7 @@ _llm = ChatOpenAI(
     api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
     temperature=_llm_cfg.get("temperature", 0.1),
     max_tokens=_llm_cfg.get("max_tokens", 1024),
-    model_kwargs={"extra_body": {"top_p": 0.8, "top_k": 20, "min_p": 0.0}},
+    extra_body={"enable_thinking": False},
 )
 
 _MAX_RETRIES = _agent_cfg.get("max_retries", 2)
