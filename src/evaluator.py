@@ -115,38 +115,48 @@ def _compute_retrieval_metrics(ranks: list[int | None]) -> dict:
     return metrics
 
 
-def run_eval(n: int, output_path: Path, tag: str = "default") -> dict:
+def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int = None) -> dict:
     """
     批量评测主函数。三阶段分批执行，避免检索模型与 LLM 同时占用显存。
 
-    Phase 1 — 批量检索：BGE-M3 + Reranker 在 GPU，完成后立即释放。同时计算 Hit@K / MRR@K。
-    Phase 2 — 批量生成：LLM via API，GPU 零占用。记录 token 用量和耗时。
-    Phase 3 — RAGAS 评测：LLM via API + BGE-M3 embeddings。
+    Phase 1 — 批量检索：对 n_retrieval 条样本检索，计算 Hit@K / MRR@K；
+               同时保留前 n 条的 contexts 供后续生成使用。完成后释放 GPU 显存。
+    Phase 2 — 批量生成：对前 n 条样本调用 LLM API，记录 token 用量和耗时。
+    Phase 3 — RAGAS 评测：对前 n 条样本计算 RAGAS 指标。
 
-    Returns:
-        完整指标字典
+    Args:
+        n           : RAGAS 评测 + 生成的样本数
+        n_retrieval : Hit@K / MRR 评测的样本数（默认等于 n）
+        output_path : 结果保存路径
+        tag         : 实验标签
     """
+    if n_retrieval is None:
+        n_retrieval = n
+
     retriever = Retriever(VectorStore(), BM25Store(), Reranker())
 
     with open(_EVAL_PATH, encoding="utf-8") as f:
         eval_records = [json.loads(line) for line in f if line.strip()]
-    samples = eval_records[:n]
 
     # ------------------------------------------------------------------
     # Phase 1: 批量检索（BGE-M3 + Reranker 在 GPU）
+    #   - 全量 n_retrieval 条用于计算 Hit@K / MRR@K
+    #   - 前 n 条同时保存 contexts 供生成使用
     # ------------------------------------------------------------------
-    retrieved = []   # (question, ground_truth, contexts)
-    ranks = []       # gold doc 排名（1-based），未命中为 None
+    retrieved = []   # (question, ground_truth, contexts)，仅前 n 条
+    ranks = []       # gold doc 排名（1-based），未命中为 None，共 n_retrieval 条
 
     t0 = time.time()
-    for record in tqdm(samples, desc="[1/3] Retrieving"):
+    for i, record in enumerate(tqdm(eval_records[:n_retrieval], desc="[1/3] Retrieving")):
         question     = record.get("question", "")
         ground_truth = record.get("answer", "")
         gold_id      = record.get("doc_id", "")
 
         chunks = retriever.search(question, top_k=max(_KS))
-        contexts = [c["text"] for c in chunks]
-        retrieved.append((question, ground_truth, contexts))
+
+        if i < n:
+            contexts = [c["text"] for c in chunks]
+            retrieved.append((question, ground_truth, contexts))
 
         retrieved_ids = [c.get("doc_id", "") for c in chunks]
         if gold_id and gold_id in retrieved_ids:
@@ -249,6 +259,7 @@ def run_eval(n: int, output_path: Path, tag: str = "default") -> dict:
         "time":           datetime.now().strftime("%Y-%m-%d %H:%M"),
         "tag":            tag,
         "n":              n,
+        "n_retrieval":    n_retrieval,
         "retriever_mode": config.get("retriever", {}).get("mode"),
         "alpha":          config.get("retriever", {}).get("custom", {}).get("alpha"),
         "candidate_k":    config.get("retriever", {}).get("custom", {}).get("candidate_k"),
@@ -265,15 +276,18 @@ def run_eval(n: int, output_path: Path, tag: str = "default") -> dict:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n",      type=int, default=10,
-                        help="评测样本数（默认 10）")
-    parser.add_argument("--tag",    type=str, default="default",
+    parser.add_argument("--n",           type=int, default=10,
+                        help="RAGAS 评测样本数（默认 10）")
+    parser.add_argument("--n-retrieval", type=int, default=None,
+                        help="Hit@K/MRR 评测样本数（默认与 --n 相同）")
+    parser.add_argument("--tag",         type=str, default="default",
                         help="实验标签（如 baseline / alpha0.6 / chunk256）")
-    parser.add_argument("--output", type=str, default="data/eval_results.json",
+    parser.add_argument("--output",      type=str, default="data/eval_results.json",
                         help="结果保存路径")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_eval(n=args.n, output_path=_ROOT / args.output, tag=args.tag)
+    run_eval(n=args.n, output_path=_ROOT / args.output, tag=args.tag,
+             n_retrieval=args.n_retrieval)
