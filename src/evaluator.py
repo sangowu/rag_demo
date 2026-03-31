@@ -27,11 +27,10 @@ sys.path.insert(0, str(_ROOT))
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from openai import OpenAI
 from ragas import EvaluationDataset, SingleTurnSample, evaluate
-from ragas.embeddings import HuggingFaceEmbeddings
-from ragas.llms import llm_factory
-from ragas.metrics.collections import AnswerRelevancy, ContextPrecision, Faithfulness
+from ragas.embeddings import LangchainEmbeddingsWrapper
+from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import AnswerRelevancy, ContextPrecision, Faithfulness
 
 from src.bm25_store import BM25Store
 from src.config import config
@@ -120,26 +119,15 @@ def run_eval(n: int, output_path: Path) -> dict:
 
     dataset = EvaluationDataset(samples=ragas_samples)
 
-    _openai_client = OpenAI(
-        base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-        api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
-    )
-    # Monkey-patch: inject enable_thinking=False for every RAGAS call (required by ModelScope/Qwen3)
-    _orig_create = _openai_client.chat.completions.create
-    def _patched_create(*args, **kwargs):
-        extra = kwargs.get("extra_body") or {}
-        extra["enable_thinking"] = False
-        kwargs["extra_body"] = extra
-        return _orig_create(*args, **kwargs)
-    _openai_client.chat.completions.create = _patched_create
+    # RAGAS LLM: 复用已配置的 _llm（含 enable_thinking=False），用 LangchainLLMWrapper 包装
+    ragas_llm = LangchainLLMWrapper(_llm)
 
-    ragas_llm = llm_factory(
-        model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-        client=_openai_client,
-    )
+    # RAGAS Embeddings: 用 LangchainEmbeddingsWrapper 包装 HuggingFace 模型
+    from langchain_huggingface import HuggingFaceEmbeddings as LCHuggingFaceEmbeddings
     _vs_cfg = config.get("vector_store", {})
     emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")
-    ragas_emb = HuggingFaceEmbeddings(model=emb_model)
+    ragas_emb = LangchainEmbeddingsWrapper(LCHuggingFaceEmbeddings(model_name=emb_model))
+
     metrics = [
         Faithfulness(llm=ragas_llm),
         ContextPrecision(llm=ragas_llm),
