@@ -30,6 +30,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from ragas import evaluate
+from ragas.embeddings import embedding_factory
 from ragas.llms import llm_factory
 from ragas.metrics.collections import AnswerRelevancy, ContextPrecision, Faithfulness
 
@@ -117,7 +118,15 @@ def run_eval(n: int, output_path: Path) -> dict:
         model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
         client=_openai_client,
     )
-    metrics = [Faithfulness(llm=ragas_llm), ContextPrecision(llm=ragas_llm), AnswerRelevancy(llm=ragas_llm)]
+    _vs_cfg = config.get("vector_store", {})
+    ragas_emb = embedding_factory(
+        model=_vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3"),
+    )
+    metrics = [
+        Faithfulness(llm=ragas_llm),
+        ContextPrecision(llm=ragas_llm),
+        AnswerRelevancy(llm=ragas_llm, embeddings=ragas_emb),
+    ]
     result = evaluate(dataset, metrics=metrics)
     scores = result.to_pandas().mean().to_dict() 
     print(f"Score: {scores}")
