@@ -28,9 +28,10 @@ sys.path.insert(0, str(_ROOT))
 from datasets import Dataset
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from openai import OpenAI
 from ragas import evaluate
-from ragas.llms import LangchainLLMWrapper
-from ragas.metrics.collections import answer_relevancy, context_precision, faithfulness
+from ragas.llms import llm_factory
+from ragas.metrics.collections import AnswerRelevancy, ContextPrecision, Faithfulness
 
 from src.bm25_store import BM25Store
 from src.config import config
@@ -108,10 +109,15 @@ def run_eval(n: int, output_path: Path) -> dict:
         "ground_truth": ground_truths,
     })
 
-    ragas_llm = LangchainLLMWrapper(_llm)
-    metrics = [faithfulness, context_precision, answer_relevancy]
-    for m in metrics:
-        m.llm = ragas_llm
+    _openai_client = OpenAI(
+        base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
+        api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
+    )
+    ragas_llm = llm_factory(
+        model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
+        client=_openai_client,
+    )
+    metrics = [Faithfulness(llm=ragas_llm), ContextPrecision(llm=ragas_llm), AnswerRelevancy(llm=ragas_llm)]
     result = evaluate(dataset, metrics=metrics)
     scores = result.to_pandas().mean().to_dict() 
     print(f"Score: {scores}")
