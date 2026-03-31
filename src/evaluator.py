@@ -163,7 +163,7 @@ def run_eval(n: int, output_path: Path) -> dict:
         AnswerRelevancy(llm=ragas_llm, embeddings=ragas_emb),
     ]
     result = evaluate(dataset, metrics=metrics)
-    scores = result.to_pandas().mean().to_dict()
+    scores = result.to_pandas().select_dtypes(include="number").mean().to_dict()
     print(f"Score: {scores}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
