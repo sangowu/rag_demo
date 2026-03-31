@@ -25,8 +25,8 @@ data/bm25_index.pkl
 data/ingestion_registry.json
 
 # Eval outputs (generated, not source)
-data/eval_results.json
-data/results/
+# data/eval_results.json
+# data/results/
 
 # Models (large binary files)
 models/

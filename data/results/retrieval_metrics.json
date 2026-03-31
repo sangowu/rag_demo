@@ -1,0 +1,125 @@
+{
+  "n": 183,
+  "metrics": {
+    "hit@1": 0.6721311475409836,
+    "mrr@1": 0.6721311475409836,
+    "hit@3": 0.8142076502732241,
+    "mrr@3": 0.7358834244080146,
+    "hit@5": 0.8469945355191257,
+    "mrr@5": 0.7432604735883425
+  },
+  "misses": [
+    {
+      "doc_id": "AAPL_2013_page_72.pdf",
+      "query": "What was the accumulated other comprehensive income/(loss) for Apple Inc. in the"
+    },
+    {
+      "doc_id": "AOS_2016_page_19.pdf",
+      "query": "What does the graph in the 2016 financial report compare for the company's commo"
+    },
+    {
+      "doc_id": "DRE_2010_page_36.pdf",
+      "query": "What were the principal uses of liquidity for the company in the fiscal year 202"
+    },
+    {
+      "doc_id": "FIS_2016_page_93.pdf",
+      "query": "What was the total stock compensation expense for FIS in the fiscal year 2016?"
+    },
+    {
+      "doc_id": "FRT_2007_page_137.pdf",
+      "query": "What was the balance of property, plant, and equipment as of December 31, 2007, "
+    },
+    {
+      "doc_id": "GPN_2009_page_69.pdf",
+      "query": "What was the total amount of assets acquired by GPN in the fiscal year 2009?"
+    },
+    {
+      "doc_id": "GS_2016_page_81.pdf",
+      "query": "What activities does Goldman Sachs engage in to manage securities transactions a"
+    },
+    {
+      "doc_id": "HIG_2004_page_192.pdf",
+      "query": "What was the total amount of pension benefits provided by Highmark Inc. in the f"
+    },
+    {
+      "doc_id": "INTC_2013_page_47.pdf",
+      "query": "What percentage of Intel's net revenue in 2013 was contributed by Hewlett-Packar"
+    },
+    {
+      "doc_id": "IP_2012_page_58.pdf",
+      "query": "What was the operating profit of Intel Corporation in the fiscal year 2012?"
+    },
+    {
+      "doc_id": "LLY_2008_page_43.pdf",
+      "query": "What was the total purchase price for the acquired in-process research and devel"
+    },
+    {
+      "doc_id": "MAA_2015_page_56.pdf",
+      "query": "What was the total revenue for Mall of America in the fiscal year ended December"
+    },
+    {
+      "doc_id": "MAR_2005_page_52.pdf",
+      "query": "What was the fair value of derivative instruments for Marvell Technology Group i"
+    },
+    {
+      "doc_id": "MMM_2007_page_37.pdf",
+      "query": "What was the value of the combined index for MMM in the fiscal year ending Decem"
+    },
+    {
+      "doc_id": "MS_2012_page_150.pdf",
+      "query": "What is the name of the company and the fiscal year mentioned in the financial r"
+    },
+    {
+      "doc_id": "NCLH_2017_page_57.pdf",
+      "query": "What is the total long-term debt for NCLH in the fiscal year 2017?"
+    },
+    {
+      "doc_id": "NKE_2015_page_37.pdf",
+      "query": "What types of off-balance sheet arrangements does Nike Inc. engage in during its"
+    },
+    {
+      "doc_id": "ORLY_2017_page_30.pdf",
+      "query": "What does the stock performance graph illustrate for ORLY in the fiscal year 201"
+    },
+    {
+      "doc_id": "PM_2018_page_31.pdf",
+      "query": "What factors contributed to the anticipated increase in the company's financial "
+    },
+    {
+      "doc_id": "TFX_2015_page_70.pdf",
+      "query": "What was the weighted-average exercise price of outstanding options, warrants an"
+    },
+    {
+      "doc_id": "UNP_2011_page_25.pdf",
+      "query": "What types of revenues does the company include in its other revenues for the fi"
+    },
+    {
+      "doc_id": "VNO_2012_page_84.pdf",
+      "query": "What does the performance graph in the document compare for the five-year cumula"
+    },
+    {
+      "doc_id": "CDW_2015_page_34.pdf",
+      "query": "What was CDW's net income for the fiscal year ended December 31, 2015?"
+    },
+    {
+      "doc_id": "CMCSA_2008_page_56.pdf",
+      "query": "What was the total value of net assets acquired by CMCSA in the fiscal year 2008"
+    },
+    {
+      "doc_id": "CNC_2003_page_41.pdf",
+      "query": "What was the revenue of CNC in the fiscal year 2002?"
+    },
+    {
+      "doc_id": "EMN_2006_page_108.pdf",
+      "query": "What was the accumulated other comprehensive income (loss) for Emerson Electric "
+    },
+    {
+      "doc_id": "GS_2018_page_212.pdf",
+      "query": "What was the total number of securities to be issued upon exercise of outstandin"
+    },
+    {
+      "doc_id": "HWM_2015_page_72.pdf",
+      "query": "What financial information is provided for the company in the 2015 and 2014 fisc"
+    }
+  ]
+}
