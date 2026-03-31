@@ -29,6 +29,7 @@ from datasets import Dataset
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from ragas import evaluate
+from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import answer_relevancy, context_precision, faithfulness
 
 from src.bm25_store import BM25Store
@@ -105,7 +106,11 @@ def run_eval(n: int, output_path: Path) -> dict:
         "ground_truth": ground_truths,
     })
 
-    result = evaluate(dataset, metrics=[faithfulness, context_precision, answer_relevancy])
+    ragas_llm = LangchainLLMWrapper(_llm)
+    metrics = [faithfulness, context_precision, answer_relevancy]
+    for m in metrics:
+        m.llm = ragas_llm
+    result = evaluate(dataset, metrics=metrics)
     scores = result.to_pandas().mean().to_dict() 
     print(f"Score: {scores}")
 
