@@ -30,7 +30,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from ragas import evaluate
 from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import answer_relevancy, context_precision, faithfulness
+from ragas.metrics.collections import answer_relevancy, context_precision, faithfulness
 
 from src.bm25_store import BM25Store
 from src.config import config
@@ -48,6 +48,7 @@ _llm = ChatOpenAI(
     api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
     temperature=_llm_cfg.get("temperature", 0.1),
     max_tokens=_llm_cfg.get("max_tokens", 1024),
+    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
 )
 
 _SYSTEM_PROMPT = (
