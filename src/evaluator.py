@@ -29,7 +29,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from ragas import EvaluationDataset, SingleTurnSample, evaluate
-from ragas.embeddings import HuggingFaceEmbeddings
 from ragas.llms import llm_factory
 from ragas.metrics import AnswerRelevancy, ContextPrecision, Faithfulness
 
@@ -40,6 +39,23 @@ from src.retriever import Retriever
 from src.vector_store import VectorStore
 
 _EVAL_PATH = Path(__file__).parent.parent / "data/finqa/eval.jsonl"
+
+
+class _BGEEmbeddings:
+    """RAGAS-compatible embeddings wrapper，复用 FlagEmbedding BGEM3FlagModel。
+    实现 embed_query / embed_documents 接口供 AnswerRelevancy 调用。
+    """
+    def __init__(self, model_name: str):
+        from FlagEmbedding import BGEM3FlagModel
+        self._model = BGEM3FlagModel(model_name, use_fp16=True)
+
+    def embed_query(self, text: str) -> list[float]:
+        result = self._model.encode_queries([text], return_dense=True, return_sparse=False, return_colbert_vecs=False)
+        return result["dense_vecs"][0].tolist()
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        result = self._model.encode_corpus(texts, return_dense=True, return_sparse=False, return_colbert_vecs=False)
+        return result["dense_vecs"].tolist()
 
 _llm_cfg = config.get("llm", {})
 
@@ -139,7 +155,7 @@ def run_eval(n: int, output_path: Path) -> dict:
     )
     _vs_cfg = config.get("vector_store", {})
     emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")
-    ragas_emb = HuggingFaceEmbeddings(model=emb_model)
+    ragas_emb = _BGEEmbeddings(emb_model)
 
     metrics = [
         Faithfulness(llm=ragas_llm),
