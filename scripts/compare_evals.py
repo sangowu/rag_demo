@@ -35,7 +35,10 @@ def _f(val, fmt=".3f"):
 def print_table(entries: list[dict]) -> None:
     # --- RAGAS 指标 ---
     print("\n┌─ RAGAS Metrics " + "─" * 52 + "┐")
-    hdr = f"  {'tag':<18} {'n':>4}  {'faith':>6}  {'c_prec':>6}  {'a_relev':>7}  {'alpha':>5}  {'ck':>3}  {'chunk':>5}"
+    hdr = (
+        f"  {'tag':<18} {'n':>4}  {'faith':>6}  {'c_prec':>6}  {'a_relev':>7}"
+        f"  {'alpha':>5}  {'ck':>3}  {'strategy':<10}  {'size':>4}  {'ovlp':>4}"
+    )
     print(hdr)
     print("  " + "─" * (len(hdr) - 2))
     for e in entries:
@@ -46,7 +49,9 @@ def print_table(entries: list[dict]) -> None:
             f"  {_f(e.get('answer_relevancy')):>7}"
             f"  {_f(e.get('alpha'),''):>5}"
             f"  {str(e.get('candidate_k',''))[:3]:>3}"
-            f"  {str(e.get('chunk_size',''))[:5]:>5}"
+            f"  {str(e.get('chunk_strategy','')):<10}"
+            f"  {str(e.get('chunk_size',''))[:4]:>4}"
+            f"  {str(e.get('chunk_overlap',''))[:4]:>4}"
         )
 
     # --- 检索指标 ---

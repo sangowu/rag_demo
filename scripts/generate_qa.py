@@ -334,7 +334,7 @@ def main() -> None:
 
     with open(out_path, "w", encoding="utf-8") as out_f:
         for path in tqdm(doc_paths, desc="Generating QA"):
-            doc_id = path.stem
+            doc_id = path.name
             doc_text = path.read_text(encoding="utf-8")
             chunk_text, strategy_label = pick_chunk(doc_text, doc_id)
 

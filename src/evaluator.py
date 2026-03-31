@@ -47,7 +47,7 @@ from src.reranker import Reranker
 from src.retriever import Retriever
 from src.vector_store import VectorStore
 
-_EVAL_PATH = _ROOT / "data/finqa/eval.jsonl"
+_EVAL_PATH = _ROOT / "data/results/qa_pairs.jsonl"
 _KS = [1, 3, 5]
 
 
@@ -150,7 +150,10 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     for i, record in enumerate(tqdm(eval_records[:n_retrieval], desc="[1/3] Retrieving")):
         question     = record.get("question", "")
         ground_truth = record.get("answer", "")
-        gold_id      = record.get("doc_id", "")
+        # 兼容旧版 qa_pairs（doc_id 用 path.stem，缺少 .pdf 后缀）
+        gold_id = record.get("doc_id", "")
+        if gold_id and not gold_id.endswith(".pdf"):
+            gold_id = gold_id + ".pdf"
 
         chunks = retriever.search(question, top_k=max(_KS))
 
@@ -263,7 +266,9 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
         "retriever_mode": config.get("retriever", {}).get("mode"),
         "alpha":          config.get("retriever", {}).get("custom", {}).get("alpha"),
         "candidate_k":    config.get("retriever", {}).get("custom", {}).get("candidate_k"),
+        "chunk_strategy": config.get("chunking", {}).get("strategy"),
         "chunk_size":     config.get("chunking", {}).get("chunk_size"),
+        "chunk_overlap":  config.get("chunking", {}).get("overlap"),
         **all_scores,
     }
     log_path = output_path.parent / "eval_log.jsonl"
