@@ -35,6 +35,8 @@ _KS          = [1, 3, 5]
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=200, help="评测样本数（默认 200）")
+    parser.add_argument("--eval-file", type=str, default=None,
+                        help="评测集路径，默认使用 data/finqa/eval.jsonl")
     return parser.parse_args()
 
 
@@ -89,7 +91,8 @@ def plot_metrics(metrics: dict, n: int, out_path: Path) -> None:
 def main():
     args = parse_args()
 
-    with open(_EVAL_PATH, encoding="utf-8") as f:
+    eval_path = _ROOT / args.eval_file if args.eval_file else _EVAL_PATH
+    with open(eval_path, encoding="utf-8") as f:
         eval_records = [json.loads(line) for line in f if line.strip()]
     samples = eval_records[: args.n]
 
