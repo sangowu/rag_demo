@@ -35,5 +35,11 @@ def search_internal(query: str) -> list[dict]:
     return _retriever.search(query)
 
 
+def offload_retrieval_models() -> None:
+    """检索完成后释放 BGE-M3 + Reranker 的 GPU 显存，为 LLM 推理腾出空间。"""
+    _retriever._vs.offload()
+    _retriever._reranker.offload()
+
+
 # 导出工具列表供 graph 使用
 tools = [search_internal]

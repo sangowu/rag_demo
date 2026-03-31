@@ -71,7 +71,11 @@ def _generate_answer(question: str, contexts: list[str]) -> str:
 
 def run_eval(n: int, output_path: Path) -> dict:
     """
-    批量评测主函数。
+    批量评测主函数。三阶段分批执行，避免检索模型与 LLM 同时占用显存。
+
+    Phase 1 — 批量检索：BGE-M3 + Reranker 在 GPU，生成完毕后立即释放。
+    Phase 2 — 批量生成：LLM via API，GPU 零占用。
+    Phase 3 — RAGAS 评测：LLM via API + BGE-M3 embeddings（仅 AnswerRelevancy 用到）。
 
     Args:
         n           : 评测样本数
@@ -80,21 +84,33 @@ def run_eval(n: int, output_path: Path) -> dict:
     Returns:
         RAGAS 评测分数字典
     """
-    # 初始化组件
     retriever = Retriever(VectorStore(), BM25Store(), Reranker())
 
     with open(_EVAL_PATH, encoding="utf-8") as f:
         eval_records = [json.loads(line) for line in f if line.strip()]
     samples = eval_records[:n]
 
-    ragas_samples = []
-
-    for record in tqdm(samples, desc="Evaluating"):
+    # ------------------------------------------------------------------
+    # Phase 1: 批量检索（BGE-M3 + Reranker 在 GPU）
+    # ------------------------------------------------------------------
+    retrieved = []
+    for record in tqdm(samples, desc="[1/3] Retrieving"):
         question     = record.get("question", "")
         ground_truth = record.get("answer", "")
         chunks   = retriever.search(question)
         contexts = [c["text"] for c in chunks]
-        answer   = _generate_answer(question, contexts)
+        retrieved.append((question, ground_truth, contexts))
+
+    # 检索完成，释放 GPU 显存
+    retriever._vs.offload()
+    retriever._reranker.offload()
+
+    # ------------------------------------------------------------------
+    # Phase 2: 批量生成（ModelScope API，GPU 零占用）
+    # ------------------------------------------------------------------
+    ragas_samples = []
+    for question, ground_truth, contexts in tqdm(retrieved, desc="[2/3] Generating"):
+        answer = _generate_answer(question, contexts)
         ragas_samples.append(SingleTurnSample(
             user_input=question,
             response=answer,

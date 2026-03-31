@@ -254,6 +254,14 @@ class VectorStore:
         scored_candidates.sort(key=lambda x: x["score"], reverse=True)
         return scored_candidates[:top_k]
 
+    def offload(self) -> None:
+        """释放 BGE-M3 占用的 GPU 显存。检索完成后调用，为 LLM 推理腾出空间。"""
+        if self._model is not None:
+            import torch
+            del self._model
+            self._model = None
+            torch.cuda.empty_cache()
+
     def delete_by_doc_id(self, doc_id: str) -> None:
         """删除某文档的所有 chunk。"""
         self._collection.delete(where={"doc_id": doc_id})

@@ -51,7 +51,14 @@ class Reranker:
         for chunk, score in zip(chunks, scores):
             chunk["score"] = float(score)
         chunks.sort(key=lambda x: x["score"], reverse=True)
-
         return chunks[:top_k]
+
+    def offload(self) -> None:
+        """释放 BGE-reranker 占用的 GPU 显存。检索完成后调用，为 LLM 推理腾出空间。"""
+        if self._model is not None:
+            import torch
+            del self._model
+            self._model = None
+            torch.cuda.empty_cache()
         
 

@@ -21,7 +21,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from src.agent.state import AgentState
-from src.agent.tools import search_internal
+from src.agent.tools import offload_retrieval_models, search_internal
 from src.config import config
 
 _llm_cfg = config.get("llm", {})
@@ -59,8 +59,10 @@ def planner_node(state: AgentState) -> dict:
 def tool_node(state: AgentState) -> dict:
     """
     调用 search_internal 工具，将检索结果写入 state。
+    检索完成后立即释放 BGE-M3 + Reranker 的 GPU 显存，为 LLM 推理腾出空间。
     """
     chunks = search_internal.invoke({"query": state["query"]})
+    offload_retrieval_models()
     sources = list({chunk["doc_id"] for chunk in chunks if "doc_id" in chunk})
 
     return {"retrieved_chunks": chunks, "sources": sources}
