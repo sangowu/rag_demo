@@ -30,7 +30,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from ragas import evaluate
-from ragas.embeddings import embedding_factory
+from ragas.embeddings import HuggingFaceEmbeddings
 from ragas.llms import llm_factory
 from ragas.metrics.collections import AnswerRelevancy, ContextPrecision, Faithfulness
 
@@ -119,9 +119,8 @@ def run_eval(n: int, output_path: Path) -> dict:
         client=_openai_client,
     )
     _vs_cfg = config.get("vector_store", {})
-    ragas_emb = embedding_factory(
-        model=_vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3"),
-    )
+    emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")
+    ragas_emb = HuggingFaceEmbeddings(model_name=emb_model)
     metrics = [
         Faithfulness(llm=ragas_llm),
         ContextPrecision(llm=ragas_llm),
