@@ -174,8 +174,8 @@ def run_eval(n: int, output_path: Path) -> dict:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n",      type=int,   default=50,
-                        help="评测样本数（默认 50）")
+    parser.add_argument("--n",      type=int,   default=10,
+                        help="评测样本数（默认10）")
     parser.add_argument("--output", type=str,   default="data/eval_results.json",
                         help="结果保存路径")
     return parser.parse_args()
