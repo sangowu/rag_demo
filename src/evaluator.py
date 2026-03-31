@@ -33,10 +33,11 @@ from ragas.metrics import answer_relevancy, context_precision, faithfulness
 
 from src.bm25_store import BM25Store
 from src.config import config
-from src.data_loader import DataLoader
 from src.reranker import Reranker
 from src.retriever import Retriever
 from src.vector_store import VectorStore
+
+_EVAL_PATH = Path(__file__).parent.parent / "data/finqa/eval.jsonl"
 
 _llm_cfg = config.get("llm", {})
 
@@ -78,8 +79,8 @@ def run_eval(n: int, output_path: Path) -> dict:
     # 初始化组件
     retriever = Retriever(VectorStore(), BM25Store(), Reranker())
 
-    # 加载 FinQA eval 记录
-    _, eval_records = DataLoader().load()
+    with open(_EVAL_PATH, encoding="utf-8") as f:
+        eval_records = [json.loads(line) for line in f if line.strip()]
     samples = eval_records[:n]
 
     questions, answers, contexts_list, ground_truths = [], [], [], []
