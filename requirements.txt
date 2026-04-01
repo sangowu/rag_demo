@@ -26,12 +26,3 @@ pyyaml
 typing-extensions
 tqdm
 ragas
-
-./build/bin/llama-server \
-  -m /root/autodl-tmp/models/Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q4_K_M.gguf \
-  --n-gpu-layers -1 \
-  --ctx-size 8192 \
-  --port 8000 \
-  --api-key local \
-  --jinja \
-  --chat-template-kwargs '{"enable_thinking": false}'
