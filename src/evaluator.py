@@ -47,7 +47,7 @@ from src.reranker import Reranker
 from src.retriever import Retriever
 from src.vector_store import VectorStore
 
-_EVAL_PATH = _ROOT / "data/results/qa_pairs.jsonl"
+_EVAL_PATH = _ROOT / "data/finqa/eval.jsonl"
 _KS = [1, 3, 5]
 
 
@@ -150,7 +150,7 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     t0 = time.time()
     for i, record in enumerate(tqdm(eval_records[:n_retrieval], desc="[1/3] Retrieving")):
         question     = record.get("question", "")
-        ground_truth = record.get("answer", "")
+        ground_truth = str(record.get("exe_ans", "") or record.get("answer", ""))
         # 兼容旧版 qa_pairs（doc_id 用 path.stem，缺少 .pdf 后缀）
         gold_id = record.get("doc_id", "")
         if gold_id and not gold_id.endswith(".pdf"):
