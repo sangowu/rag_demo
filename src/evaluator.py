@@ -47,7 +47,8 @@ from src.reranker import Reranker
 from src.retriever import Retriever
 from src.vector_store import VectorStore
 
-_EVAL_PATH = _ROOT / "data/finqa/eval.jsonl"
+_EVAL_PATH_QA    = _ROOT / "data/results/qa_pairs.jsonl"
+_EVAL_PATH_FINQA = _ROOT / "data/finqa/eval.jsonl"
 _KS = [1, 3, 5]
 
 
@@ -116,7 +117,7 @@ def _compute_retrieval_metrics(ranks: list[int | None]) -> dict:
     return metrics
 
 
-def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int = None) -> dict:
+def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int = None, use_qa_pairs: bool = False) -> dict:
     """
     批量评测主函数。三阶段分批执行，避免检索模型与 LLM 同时占用显存。
 
@@ -136,7 +137,8 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
 
     retriever = Retriever(VectorStore(), BM25Store(), Reranker())
 
-    with open(_EVAL_PATH, encoding="utf-8") as f:
+    eval_path = _EVAL_PATH_QA if use_qa_pairs else _EVAL_PATH_FINQA
+    with open(eval_path, encoding="utf-8") as f:
         eval_records = [json.loads(line) for line in f if line.strip()]
 
     # ------------------------------------------------------------------
@@ -292,6 +294,8 @@ def parse_args():
                         help="Hit@K/MRR 评测样本数（默认与 --n 相同）")
     parser.add_argument("--tag",         type=str, default="default",
                         help="实验标签（如 baseline / alpha0.6 / chunk256）")
+    parser.add_argument("--qa-pairs",    action="store_true",
+                        help="使用自己生成的 qa_pairs.jsonl（默认使用 FinQA eval.jsonl）")
     parser.add_argument("--output",      type=str, default="data/eval_results.json",
                         help="结果保存路径")
     return parser.parse_args()
@@ -300,4 +304,4 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     run_eval(n=args.n, output_path=_ROOT / args.output, tag=args.tag,
-             n_retrieval=args.n_retrieval)
+             n_retrieval=args.n_retrieval, use_qa_pairs=args.qa_pairs)
