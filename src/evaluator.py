@@ -70,13 +70,14 @@ class _BGEEmbeddings:
 
 _llm_cfg = config.get("llm", {})
 
+_is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
 _llm = ChatOpenAI(
     model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
     base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
+    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "") or "local",
     temperature=_llm_cfg.get("temperature", 0.1),
     max_tokens=_llm_cfg.get("max_tokens", 1024),
-    extra_body={"enable_thinking": False},
+    extra_body={"enable_thinking": False} if _is_modelscope else {},
 )
 
 _SYSTEM_PROMPT = (
@@ -200,17 +201,21 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     # ------------------------------------------------------------------
     dataset = EvaluationDataset(samples=ragas_samples)
 
+    _api_key = os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "") or "local"
     _openai_client = OpenAI(
         base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-        api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
+        api_key=_api_key,
     )
-    _orig_create = _openai_client.chat.completions.create
-    def _patched_create(*args, **kwargs):
-        extra = kwargs.get("extra_body") or {}
-        extra["enable_thinking"] = False
-        kwargs["extra_body"] = extra
-        return _orig_create(*args, **kwargs)
-    _openai_client.chat.completions.create = _patched_create
+    # ModelScope/Qwen3 需要注入 enable_thinking=False；本地 vLLM 服务端已禁用，跳过
+    _is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
+    if _is_modelscope:
+        _orig_create = _openai_client.chat.completions.create
+        def _patched_create(*args, **kwargs):
+            extra = kwargs.get("extra_body") or {}
+            extra["enable_thinking"] = False
+            kwargs["extra_body"] = extra
+            return _orig_create(*args, **kwargs)
+        _openai_client.chat.completions.create = _patched_create
 
     ragas_llm = llm_factory(
         model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
