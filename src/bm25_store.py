@@ -17,6 +17,7 @@ Usage:
 """
 
 import pickle
+import re
 import numpy as np
 from rank_bm25 import BM25Okapi
 from pathlib import Path
@@ -34,7 +35,7 @@ def _tokenize(text: str) -> list[str]:
     # 转小写后按空格切分
     # 例：_tokenize("ADI Revenue 2009") → ["adi", "revenue", "2009"]
     """
-    return text.lower().split()
+    return re.findall(r'\b\w+\b', text.lower())
 
 
 class BM25Store:
