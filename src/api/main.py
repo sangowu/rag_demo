@@ -31,6 +31,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from src.agent.graph import graph
 from src.bm25_store import BM25Store
 from src.chunk_manager import ChunkManager
+from src.guardrails import Guardrails
 from src.vector_store import VectorStore
 
 app = FastAPI(title="Structured RAG API", version="0.1.0")
@@ -38,6 +39,7 @@ app = FastAPI(title="Structured RAG API", version="0.1.0")
 # 摄入用单例（query 路径不需要直接访问这两个）
 _vs = VectorStore()
 _bm25 = BM25Store()
+_guardrails = Guardrails()
 
 # 异步任务状态表：job_id → {status, progress, total, error}
 # 生产环境可替换为 Redis
@@ -76,6 +78,13 @@ async def query_endpoint(req: QueryRequest):
     """
     调用 LangGraph Agent，以 SSE 流式推送执行进度和最终答案。
     """
+    # 输入 guardrail：非金融问题直接拒绝，不进入 agent
+    ok, reason = _guardrails.check_input(req.query)
+    if not ok:
+        async def _blocked():
+            yield _sse("error", message=reason)
+        return StreamingResponse(_blocked(), media_type="text/event-stream")
+
     async def event_stream() -> AsyncGenerator[str, None]:
         try:
             history = []
@@ -109,11 +118,15 @@ async def query_endpoint(req: QueryRequest):
                         yield _sse("reflection", text=reflection)
                     elif node == "final":
                         node_data = data[node]
+                        answer = node_data.get("final_answer", "")
+                        chunks = node_data.get("retrieved_chunks", [])
+                        grounded, grounding_warning = _guardrails.check_output(answer, chunks)
                         yield _sse(
                             "done",
-                            answer=node_data.get("final_answer", ""),
+                            answer=answer,
                             sources=node_data.get("sources", []),
                             metrics=node_data.get("metrics", {}),
+                            grounding_warning=None if grounded else grounding_warning,
                         )
                 elif mode == "messages":
                     msg_chunk, metadata = data

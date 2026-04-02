@@ -13,6 +13,7 @@ from src.bm25_store import BM25Store
 from src.query_rewriter import QueryRewriter
 from src.reranker import Reranker
 from src.retriever import Retriever
+from src.semantic_cache import SemanticCache
 from src.vector_store import VectorStore
 
 # 模块级单例：只初始化一次
@@ -21,6 +22,7 @@ _retriever = Retriever(
     bm25_store=BM25Store(),
     reranker=Reranker(),
     query_rewriter=QueryRewriter(),
+    semantic_cache=SemanticCache(),
 )
 
 

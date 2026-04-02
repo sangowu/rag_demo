@@ -47,4 +47,11 @@ reranker:
 agent:
   max_retries: 2                   # Reflector 最大重试次数
 
+semantic_cache:
+  threshold: 0.92                  # 余弦相似度阈值，超过则命中缓存
+  max_size: 1000                   # 最大缓存条目数（FIFO 淘汰）
+
+guardrails:
+  enabled: true                    # 是否启用输入/输出校验
+
 

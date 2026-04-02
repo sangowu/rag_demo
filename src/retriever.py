@@ -28,7 +28,7 @@ _M3_CFG = _cfg.get("m3_hybrid", {})
 
 
 class Retriever:
-    def __init__(self, vector_store, bm25_store, reranker, summary_store=None, query_rewriter=None):
+    def __init__(self, vector_store, bm25_store, reranker, summary_store=None, query_rewriter=None, semantic_cache=None):
         """
         依赖注入：外部传入已初始化的组件。
 
@@ -38,12 +38,14 @@ class Retriever:
             reranker       : Reranker 实例
             summary_store  : SummaryStore 实例（可选，summary_filter 模式需要）
             query_rewriter : QueryRewriter 实例（可选，rewrite=True 时需要）
+            semantic_cache : SemanticCache 实例（可选，命中时跳过检索）
         """
         self._vs       = vector_store
         self._bm25     = bm25_store
         self._reranker = reranker
         self._summary  = summary_store
         self._rewriter = query_rewriter
+        self._cache    = semantic_cache
 
     def search(
         self,
@@ -70,10 +72,18 @@ class Retriever:
         """
         k = top_k if top_k is not None else _TOP_K
 
+        # semantic cache：先 embed query，命中则跳过后续所有检索步骤
+        if self._cache is not None:
+            query_vec = self._vs._embed_query(query)["dense_vec"]
+            cached = self._cache.get(query_vec)
+            if cached is not None:
+                return cached[:k]
+
         # query rewriting：改写后用于 dense + BM25，原始 query 保留给 reranker
         retrieval_query = query
         if rewrite and self._rewriter is not None:
             retrieval_query = self._rewriter.rewrite(query)
+        # embed 已在 cache 检查时完成，避免重复；无 cache 时在 VectorStore.search 内部完成
 
         where = None
         if summary_filter and self._summary is not None:
@@ -122,7 +132,15 @@ class Retriever:
             candidates.append(chunk)
 
         rerank_query = original_query if original_query is not None else query
-        return self._reranker.rerank(rerank_query, candidates, top_k=top_k)
+        results = self._reranker.rerank(rerank_query, candidates, top_k=top_k)
+
+        # 写入 semantic cache
+        if self._cache is not None:
+            cache_key = original_query if original_query is not None else query
+            cache_vec = self._vs._embed_query(cache_key)["dense_vec"]
+            self._cache.set(cache_vec, cache_key, results)
+
+        return results
 
     def _search_m3_hybrid(self, query: str, top_k: int, original_query: str = None) -> list[dict]:
         """
