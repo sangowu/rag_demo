@@ -117,7 +117,7 @@ def _compute_retrieval_metrics(ranks: list[int | None]) -> dict:
     return metrics
 
 
-def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int = None, use_qa_pairs: bool = False, meta_filter: bool = False) -> dict:
+def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int = None, use_qa_pairs: bool = False, meta_filter: bool = False, summary_filter: bool = False) -> dict:
     """
     批量评测主函数。三阶段分批执行，避免检索模型与 LLM 同时占用显存。
 
@@ -135,7 +135,11 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     if n_retrieval is None:
         n_retrieval = n
 
-    retriever = Retriever(VectorStore(), BM25Store(), Reranker())
+    summary_store = None
+    if summary_filter:
+        from src.summary_store import SummaryStore
+        summary_store = SummaryStore()
+    retriever = Retriever(VectorStore(), BM25Store(), Reranker(), summary_store=summary_store)
 
     eval_path = _EVAL_PATH_QA if use_qa_pairs else _EVAL_PATH_FINQA
     with open(eval_path, encoding="utf-8") as f:
@@ -158,7 +162,7 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
         if gold_id and not gold_id.endswith(".pdf"):
             gold_id = gold_id + ".pdf"
 
-        chunks = retriever.search(question, top_k=max(_KS), meta_filter=meta_filter)
+        chunks = retriever.search(question, top_k=max(_KS), meta_filter=meta_filter, summary_filter=summary_filter)
 
         if i < n:
             contexts = [c["text"] for c in chunks]
@@ -274,6 +278,7 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
         "alpha":          config.get("retriever", {}).get("custom", {}).get("alpha"),
         "candidate_k":    config.get("retriever", {}).get("custom", {}).get("candidate_k"),
         "meta_filter":    meta_filter,
+        "summary_filter": summary_filter,
         "chunk_strategy": config.get("chunking", {}).get("strategy"),
         "chunk_size":     config.get("chunking", {}).get("chunk_size"),
         "chunk_overlap":  config.get("chunking", {}).get("overlap"),
@@ -297,8 +302,10 @@ def parse_args():
                         help="实验标签（如 baseline / alpha0.6 / chunk256）")
     parser.add_argument("--qa-pairs",    action="store_true",
                         help="使用自己生成的 qa_pairs.jsonl（默认使用 FinQA eval.jsonl）")
-    parser.add_argument("--meta-filter", action="store_true",
+    parser.add_argument("--meta-filter",    action="store_true",
                         help="从 query 提取 ticker/year 作为 ChromaDB 预过滤")
+    parser.add_argument("--summary-filter", action="store_true",
+                        help="用 LLM summary 两阶段检索：先找相关文档，再搜 chunk")
     parser.add_argument("--output",      type=str, default="data/eval_results.json",
                         help="结果保存路径")
     return parser.parse_args()
@@ -308,4 +315,4 @@ if __name__ == "__main__":
     args = parse_args()
     run_eval(n=args.n, output_path=_ROOT / args.output, tag=args.tag,
              n_retrieval=args.n_retrieval, use_qa_pairs=args.qa_pairs,
-             meta_filter=args.meta_filter)
+             meta_filter=args.meta_filter, summary_filter=args.summary_filter)

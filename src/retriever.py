@@ -28,27 +28,38 @@ _M3_CFG = _cfg.get("m3_hybrid", {})
 
 
 class Retriever:
-    def __init__(self, vector_store, bm25_store, reranker):
+    def __init__(self, vector_store, bm25_store, reranker, summary_store=None):
         """
-        依赖注入：外部传入已初始化的三个组件。
+        依赖注入：外部传入已初始化的组件。
 
         Args:
-            vector_store : VectorStore 实例
-            bm25_store   : BM25Store 实例
-            reranker     : Reranker 实例
+            vector_store  : VectorStore 实例
+            bm25_store    : BM25Store 实例
+            reranker      : Reranker 实例
+            summary_store : SummaryStore 实例（可选，summary_filter 模式需要）
         """
-        self._vs = vector_store
-        self._bm25 = bm25_store
+        self._vs      = vector_store
+        self._bm25    = bm25_store
         self._reranker = reranker
+        self._summary = summary_store
 
-    def search(self, query: str, top_k: int = None, meta_filter: bool = False) -> list[dict]:
+    def search(
+        self,
+        query: str,
+        top_k: int = None,
+        meta_filter: bool = False,
+        summary_filter: bool = False,
+        summary_top_n: int = 30,
+    ) -> list[dict]:
         """
         统一检索入口，根据 config.retriever.mode 分发。
 
         Args:
-            query       : 用户查询文本
-            top_k       : 覆盖 config 默认值（可选）
-            meta_filter : True 时从 query 提取 ticker/year，用作 ChromaDB 预过滤
+            query          : 用户查询文本
+            top_k          : 覆盖 config 默认值（可选）
+            meta_filter    : 从 query 提取 ticker/year 做 ChromaDB 预过滤
+            summary_filter : 先用 summary collection 找相关文档，再在其 chunk 里搜索
+            summary_top_n  : summary 阶段返回的候选文档数（默认 30）
 
         Returns:
             list of dicts: chunk 字段 + score，按 score 降序，长度 ≤ top_k
@@ -56,7 +67,11 @@ class Retriever:
         k = top_k if top_k is not None else _TOP_K
 
         where = None
-        if meta_filter:
+        if summary_filter and self._summary is not None:
+            top_doc_ids = self._summary.search(query, top_n=summary_top_n)
+            if top_doc_ids:
+                where = {"doc_id": {"$in": top_doc_ids}}
+        elif meta_filter:
             known_tickers = self._vs.get_known_tickers()
             query_meta = extract_query_metadata(query, known_tickers)
             where = build_chroma_filter(query_meta)
