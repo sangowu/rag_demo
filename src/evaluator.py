@@ -36,7 +36,7 @@ sys.path.insert(0, str(_ROOT))
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from ragas import EvaluationDataset, SingleTurnSample, evaluate
+from ragas import EvaluationDataset, RunConfig, SingleTurnSample, evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerRelevancy, ContextPrecision, Faithfulness
 
@@ -215,7 +215,7 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
         base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
         api_key=_api_key,
         temperature=0,
-        max_tokens=4096,   # RAGAS faithfulness 输出较长，需要足够的 token 空间
+        max_tokens=8192,   # RAGAS faithfulness 输出较长，需要足够的 token 空间
         extra_body={"enable_thinking": False} if _is_modelscope else {},
     )
     ragas_llm = LangchainLLMWrapper(_ragas_chat)
@@ -230,7 +230,11 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     ]
 
     t0 = time.time()
-    result = evaluate(dataset, metrics=metrics)
+    result = evaluate(
+        dataset,
+        metrics=metrics,
+        run_config=RunConfig(timeout=300, max_retries=2),
+    )
     t_ragas = round(time.time() - t0, 2)
 
     ragas_scores = result.to_pandas().select_dtypes(include="number").mean().to_dict()
