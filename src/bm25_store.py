@@ -21,6 +21,7 @@ import numpy as np
 from rank_bm25 import BM25Okapi
 from pathlib import Path
 from src.config import config
+from src.metadata_extractor import extract_doc_metadata
 
 _ROOT = Path(__file__).parent.parent
 _cfg = config["bm25"]
@@ -50,7 +51,12 @@ class BM25Store:
         Args:
             chunks: list of dicts with keys text, doc_id, chunk_index
         """
-        tokenized_corpus = [_tokenize(chunk["text"]) for chunk in chunks]
+        def _chunk_text(chunk: dict) -> str:
+            dm = extract_doc_metadata(chunk["doc_id"])
+            header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
+            return header + chunk["text"]
+
+        tokenized_corpus = [_tokenize(_chunk_text(chunk)) for chunk in chunks]
         self._bm25 = BM25Okapi(tokenized_corpus)
         self._chunks = chunks
         _INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)

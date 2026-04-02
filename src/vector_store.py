@@ -156,7 +156,13 @@ class VectorStore:
         for i in range(0, len(new_chunks), batch_size):
             batch = new_chunks[i : i + batch_size]
             
-            batch_texts = [c['text'] for c in batch]
+            # 在每个 chunk 前加 [TICKER | YEAR] header，
+            # 使 BM25 和 dense 都能通过公司标识关联到正确文档
+            batch_texts = []
+            for c in batch:
+                dm = extract_doc_metadata(c["doc_id"])
+                header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
+                batch_texts.append(header + c["text"])
             embed_res = self._embed_documents(batch_texts)
             
             ids = [f"{c['doc_id']}_{c['chunk_index']}" for c in batch]
