@@ -44,13 +44,13 @@ _MAX_RETRIES = _agent_cfg.get("max_retries", 2)
 # Planner Node
 # ---------------------------------------------------------------------------
 
-class _PlannerDecision(BaseModel):
+class PlannerDecision(BaseModel):
     should_retrieve: bool = Field(description="Whether retrieval from documents is needed to answer the query")
     should_rewrite: bool = Field(description="Whether the query contains ticker symbols or ambiguous company names that need expansion (e.g. ADI, JPM, C)")
     reasoning: str = Field(description="One sentence explaining the decisions")
 
 
-_planner_llm = _llm.with_structured_output(_PlannerDecision)
+_planner_llm = _llm.with_structured_output(PlannerDecision)
 
 _PLANNER_PROMPT = """\
 You are a planning agent for a financial document QA system.
