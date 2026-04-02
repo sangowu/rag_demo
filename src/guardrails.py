@@ -23,6 +23,7 @@ _llm_cfg = config.get("llm", {})
 _is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
 
 _INPUT_PROMPT = """\
+/no_think
 Is the following query related to financial documents, company reports, \
 revenue, earnings, or business metrics? Reply with ONLY "yes" or "no".
 
@@ -59,10 +60,15 @@ class Guardrails:
 
         try:
             result = self._llm.invoke(_INPUT_PROMPT.format(query=query))
-            answer = result.content.strip().lower()
-            if answer.startswith("yes"):
-                return True, ""
-            return False, "This system only answers questions about financial documents and company reports."
+            # 去掉 Qwen3 thinking block（<think>...</think>），再找 yes/no
+            raw = re.sub(r"<think>.*?</think>", "", result.content, flags=re.DOTALL)
+            answer = raw.strip().lower()
+            has_yes = "yes" in answer
+            has_no  = "no"  in answer
+            # 明确包含 no 且不含 yes → 拦截；其余情况放行（优先避免误拦截）
+            if has_no and not has_yes:
+                return False, "This system only answers questions about financial documents and company reports."
+            return True, ""
         except Exception:
             # LLM 调用失败时放行，避免误拦截
             return True, ""
