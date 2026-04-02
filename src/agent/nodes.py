@@ -16,10 +16,13 @@ LangGraph Agent 的 5 个节点函数。
 
 import os
 import time
+import warnings
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+
+warnings.filterwarnings("ignore", message="Pydantic serializer warnings", category=UserWarning)
 
 from src.agent.state import AgentState
 from src.agent.tools import _retriever, offload_retrieval_models
