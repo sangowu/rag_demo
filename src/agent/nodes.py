@@ -19,9 +19,10 @@ import time
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 from src.agent.state import AgentState
-from src.agent.tools import offload_retrieval_models, search_internal
+from src.agent.tools import _retriever, offload_retrieval_models
 from src.config import config
 
 _llm_cfg = config.get("llm", {})
@@ -43,14 +44,45 @@ _MAX_RETRIES = _agent_cfg.get("max_retries", 2)
 # Planner Node
 # ---------------------------------------------------------------------------
 
+class _PlannerDecision(BaseModel):
+    should_retrieve: bool = Field(description="Whether retrieval from documents is needed to answer the query")
+    should_rewrite: bool = Field(description="Whether the query contains ticker symbols or ambiguous company names that need expansion (e.g. ADI, JPM, C)")
+    reasoning: str = Field(description="One sentence explaining the decisions")
+
+
+_planner_llm = _llm.with_structured_output(_PlannerDecision)
+
+_PLANNER_PROMPT = """\
+You are a planning agent for a financial document QA system.
+Analyze the user query and make two decisions:
+
+1. should_retrieve: Does this query require looking up information from financial documents?
+   - True for most financial questions (revenue, earnings, ratios, etc.)
+   - False only if the query is a greeting, meta-question, or answerable from common knowledge
+
+2. should_rewrite: Does the query contain stock ticker symbols or ambiguous short company names that should be expanded?
+   - True if you see tickers like ADI, JPM, C, GS, MS, BAC, WFC, AAPL, etc.
+   - True if the company reference is ambiguous or abbreviated
+   - False if the full company name is already used
+
+Query: {query}"""
+
+
 def planner_node(state: AgentState) -> dict:
     """
-    决策是否需要检索。当前策略：始终检索。
-    后续可扩展为：若 query 可直接回答则跳过检索。
+    决策是否需要检索，以及是否需要 query rewriting。
+    用 structured output 输出 JSON，同时记录 reasoning 供 LangSmith 可观测。
     """
-    # TODO: 同时记录开始时间，返回 start_time=time.time()
-    return {"should_retrieve": True,
-            "start_time": time.time()}
+    try:
+        decision = _planner_llm.invoke(_PLANNER_PROMPT.format(query=state["query"]))
+        return {
+            "should_retrieve": decision.should_retrieve,
+            "should_rewrite": decision.should_rewrite,
+            "start_time": time.time(),
+        }
+    except Exception:
+        # 结构化输出失败时降级为始终检索、不改写
+        return {"should_retrieve": True, "should_rewrite": False, "start_time": time.time()}
 
 # ---------------------------------------------------------------------------
 # Tool Node
@@ -58,18 +90,19 @@ def planner_node(state: AgentState) -> dict:
 
 def tool_node(state: AgentState) -> dict:
     """
-    调用 search_internal 工具，将检索结果写入 state。
-    检索完成后立即释放 BGE-M3 + Reranker 的 GPU 显存，为 LLM 推理腾出空间。
-    rewritten_query 写入 state 供 LangSmith 可观测。
+    执行混合检索，将结果写入 state。
+    由 planner 决定是否启用 query rewriting（should_rewrite）。
+    检索完成后释放 BGE-M3 + Reranker 显存，为 LLM 推理腾出空间。
     """
     query = state["query"]
-    chunks = search_internal.invoke({"query": query})
+    should_rewrite = state.get("should_rewrite", False)
+
+    chunks = _retriever.search(query, rewrite=should_rewrite)
     offload_retrieval_models()
     sources = list({chunk["doc_id"] for chunk in chunks if "doc_id" in chunk})
 
-    # 从 rewriter 缓存读取改写后的 query（已在 search_internal 内部调用过）
-    from src.agent.tools import _retriever
-    rewritten = _retriever._rewriter._cache.get(query, query)
+    # 记录改写后的 query 供 LangSmith 可观测（未改写时与原始相同）
+    rewritten = _retriever._rewriter._cache.get(query, query) if should_rewrite else query
 
     return {"retrieved_chunks": chunks, "sources": sources, "rewritten_query": rewritten}
 

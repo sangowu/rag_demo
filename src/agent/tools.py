@@ -34,7 +34,7 @@ def search_internal(query: str) -> list[dict]:
     Returns:
         List of relevant document chunks with text and metadata.
     """
-    return _retriever.search(query, rewrite=True)
+    return _retriever.search(query)
 
 
 def offload_retrieval_models() -> None:
