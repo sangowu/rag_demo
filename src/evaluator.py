@@ -36,9 +36,8 @@ sys.path.insert(0, str(_ROOT))
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from openai import OpenAI
 from ragas import EvaluationDataset, SingleTurnSample, evaluate
-from ragas.llms import llm_factory
+from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerRelevancy, ContextPrecision, Faithfulness
 
 from src.bm25_store import BM25Store
@@ -210,25 +209,16 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     dataset = EvaluationDataset(samples=ragas_samples)
 
     _api_key = os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "") or "local"
-    _openai_client = OpenAI(
+    _is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
+    _ragas_chat = ChatOpenAI(
+        model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
         base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
         api_key=_api_key,
+        temperature=0,
+        max_tokens=4096,   # RAGAS faithfulness 输出较长，需要足够的 token 空间
+        extra_body={"enable_thinking": False} if _is_modelscope else {},
     )
-    # ModelScope/Qwen3 需要注入 enable_thinking=False；本地 vLLM 服务端已禁用，跳过
-    _is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
-    if _is_modelscope:
-        _orig_create = _openai_client.chat.completions.create
-        def _patched_create(*args, **kwargs):
-            extra = kwargs.get("extra_body") or {}
-            extra["enable_thinking"] = False
-            kwargs["extra_body"] = extra
-            return _orig_create(*args, **kwargs)
-        _openai_client.chat.completions.create = _patched_create
-
-    ragas_llm = llm_factory(
-        model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-        client=_openai_client,
-    )
+    ragas_llm = LangchainLLMWrapper(_ragas_chat)
     _vs_cfg = config.get("vector_store", {})
     emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")
     ragas_emb = _BGEEmbeddings(emb_model)
