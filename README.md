@@ -4,17 +4,17 @@ An end-to-end **Agentic RAG** system for structured financial documents (FinQA d
 
 ## Evaluation Results
 
-Best configuration: `fixed chunking / chunk_size=512 / alpha=0.7 / candidate_k=40`
+Best configuration: `fixed chunking / chunk_size=512 / alpha=0.7 / candidate_k=40 / ticker-year header injection`
 
 | Metric | Score |
 |--------|-------|
-| Hit@1 | 0.689 |
-| Hit@3 | 0.831 |
-| Hit@5 | **0.896** |
-| MRR@5 | 0.768 |
-| Faithfulness | 0.925 |
+| Hit@1 | 0.814 |
+| Hit@3 | 0.940 |
+| Hit@5 | **0.967** |
+| MRR@5 | 0.878 |
+| Faithfulness | **1.000** |
 | Context Precision | 0.833 |
-| Answer Relevancy | 0.687 |
+| Answer Relevancy | 0.890 |
 
 Evaluated on 200 QA pairs (retrieval) + 10 samples (RAGAS), using locally generated QA pairs from FinQA documents.
 
@@ -110,7 +110,7 @@ pip install -r requirements.txt
 # ModelScope API (for cloud LLM)
 export MODELSCOPE_API_KEY=your_api_key_here
 
-# LangSmith tracing (optional but recommended)
+# LangSmith tracing (configured — view traces at smith.langchain.com)
 export LANGCHAIN_TRACING_V2=true
 export LANGCHAIN_API_KEY=your_langsmith_key
 export LANGCHAIN_PROJECT=rag-demo
@@ -214,10 +214,11 @@ Key settings in `config/settings.yaml`:
 | Experiment | Hit@5 | Faithfulness | Notes |
 |-----------|-------|--------------|-------|
 | baseline (alpha=0.4, ck=20) | 0.500 | 0.750 | Starting point |
-| alpha=0.7, candidate_k=40 | **0.896** | **0.925** | +39.6% Hit@5 |
+| alpha=0.7, candidate_k=40 | 0.896 | 0.925 | +39.6% Hit@5 |
 | recursive chunking | 0.710 | 0.763 | Worse than fixed for FinQA |
 | semantic chunking | 0.715 | 0.749 | Marginal over fixed |
 | metadata pre-filter (ticker/year) | 0.760 | 0.675 | Low ticker recall from query |
 | summary-based 2-stage filter | 0.754 | 0.775 | -32% retrieval time, lower Hit@5 |
+| **ticker-year header injection** | **0.967** | **1.000** | +8% Hit@5, +12% Faithfulness over prev best |
 
-**Key insight**: Fixed chunking at 512 tokens is optimal for FinQA's short, structured financial pages. Increasing dense weight (alpha=0.7) and reranker candidate pool (candidate_k=40) gave the largest improvement.
+**Key insight**: FinQA documents never mention company ticker symbols in body text — only "the Company" or full names. Prepending a `[TICKER | YEAR]` header to every chunk at index time bridges this gap for both BM25 and dense retrieval, yielding the largest single improvement across all experiments.

@@ -28,25 +28,28 @@ _M3_CFG = _cfg.get("m3_hybrid", {})
 
 
 class Retriever:
-    def __init__(self, vector_store, bm25_store, reranker, summary_store=None):
+    def __init__(self, vector_store, bm25_store, reranker, summary_store=None, query_rewriter=None):
         """
         依赖注入：外部传入已初始化的组件。
 
         Args:
-            vector_store  : VectorStore 实例
-            bm25_store    : BM25Store 实例
-            reranker      : Reranker 实例
-            summary_store : SummaryStore 实例（可选，summary_filter 模式需要）
+            vector_store   : VectorStore 实例
+            bm25_store     : BM25Store 实例
+            reranker       : Reranker 实例
+            summary_store  : SummaryStore 实例（可选，summary_filter 模式需要）
+            query_rewriter : QueryRewriter 实例（可选，rewrite=True 时需要）
         """
-        self._vs      = vector_store
-        self._bm25    = bm25_store
+        self._vs       = vector_store
+        self._bm25     = bm25_store
         self._reranker = reranker
-        self._summary = summary_store
+        self._summary  = summary_store
+        self._rewriter = query_rewriter
 
     def search(
         self,
         query: str,
         top_k: int = None,
+        rewrite: bool = False,
         meta_filter: bool = False,
         summary_filter: bool = False,
         summary_top_n: int = 30,
@@ -57,6 +60,7 @@ class Retriever:
         Args:
             query          : 用户查询文本
             top_k          : 覆盖 config 默认值（可选）
+            rewrite        : 是否先用 LLM 改写 query（需注入 query_rewriter）
             meta_filter    : 从 query 提取 ticker/year 做 ChromaDB 预过滤
             summary_filter : 先用 summary collection 找相关文档，再在其 chunk 里搜索
             summary_top_n  : summary 阶段返回的候选文档数（默认 30）
@@ -65,6 +69,11 @@ class Retriever:
             list of dicts: chunk 字段 + score，按 score 降序，长度 ≤ top_k
         """
         k = top_k if top_k is not None else _TOP_K
+
+        # query rewriting：改写后用于 dense + BM25，原始 query 保留给 reranker
+        retrieval_query = query
+        if rewrite and self._rewriter is not None:
+            retrieval_query = self._rewriter.rewrite(query)
 
         where = None
         if summary_filter and self._summary is not None:
@@ -77,15 +86,16 @@ class Retriever:
             where = build_chroma_filter(query_meta)
 
         if _MODE == "m3_hybrid":
-            return self._search_m3_hybrid(query, k)
-        return self._search_custom(query, k, where=where)
+            return self._search_m3_hybrid(retrieval_query, k, original_query=query)
+        return self._search_custom(retrieval_query, k, where=where, original_query=query)
 
-    def _search_custom(self, query: str, top_k: int, where: dict = None) -> list[dict]:
+    def _search_custom(self, query: str, top_k: int, where: dict = None, original_query: str = None) -> list[dict]:
         """
         custom 模式：dense + BM25 双路召回 → alpha 加权融合 → rerank。
 
         融合公式：final_score = alpha * dense_score + (1 - alpha) * bm25_score
         去重 key：doc_id + chunk_index
+        rerank 使用 original_query（未改写的原始问题），保证语义对齐。
         """
         alpha = _CUSTOM_CFG.get("alpha", 0.5)
         candidate_k = _CUSTOM_CFG.get("candidate_k", 20)
@@ -111,9 +121,10 @@ class Retriever:
             chunk["score"] = (alpha * chunk["dense_score"]) + (diff * chunk["bm25_score"])
             candidates.append(chunk)
 
-        return self._reranker.rerank(query, candidates, top_k=top_k)
+        rerank_query = original_query if original_query is not None else query
+        return self._reranker.rerank(rerank_query, candidates, top_k=top_k)
 
-    def _search_m3_hybrid(self, query: str, top_k: int) -> list[dict]:
+    def _search_m3_hybrid(self, query: str, top_k: int, original_query: str = None) -> list[dict]:
         """
         m3_hybrid 模式：BGE-M3 dense+sparse 融合召回 → rerank。
         """
@@ -126,6 +137,6 @@ class Retriever:
             dense_weight=dense_weight,
             sparse_weight=sparse_weight,
         )
-        result = self._reranker.rerank(query, candidates, top_k=top_k)
-        return result
+        rerank_query = original_query if original_query is not None else query
+        return self._reranker.rerank(rerank_query, candidates, top_k=top_k)
         

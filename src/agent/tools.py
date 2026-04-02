@@ -10,6 +10,7 @@ Usage:
 from langchain_core.tools import tool
 
 from src.bm25_store import BM25Store
+from src.query_rewriter import QueryRewriter
 from src.reranker import Reranker
 from src.retriever import Retriever
 from src.vector_store import VectorStore
@@ -19,6 +20,7 @@ _retriever = Retriever(
     vector_store=VectorStore(),
     bm25_store=BM25Store(),
     reranker=Reranker(),
+    query_rewriter=QueryRewriter(),
 )
 
 
@@ -32,7 +34,7 @@ def search_internal(query: str) -> list[dict]:
     Returns:
         List of relevant document chunks with text and metadata.
     """
-    return _retriever.search(query)
+    return _retriever.search(query, rewrite=True)
 
 
 def offload_retrieval_models() -> None:

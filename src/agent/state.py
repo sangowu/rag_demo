@@ -38,6 +38,7 @@ class AgentState(TypedDict):
 
     # 以下字段由各节点在运行时填充，初始化时不需要提供
     should_retrieve: NotRequired[bool]
+    rewritten_query: NotRequired[str]  # query rewriter 改写后的 query，用于 LangSmith 可观测
     answer: NotRequired[str]
     reflection: NotRequired[str]
     final_answer: NotRequired[str]

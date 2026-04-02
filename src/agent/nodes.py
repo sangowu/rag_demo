@@ -60,12 +60,18 @@ def tool_node(state: AgentState) -> dict:
     """
     调用 search_internal 工具，将检索结果写入 state。
     检索完成后立即释放 BGE-M3 + Reranker 的 GPU 显存，为 LLM 推理腾出空间。
+    rewritten_query 写入 state 供 LangSmith 可观测。
     """
-    chunks = search_internal.invoke({"query": state["query"]})
+    query = state["query"]
+    chunks = search_internal.invoke({"query": query})
     offload_retrieval_models()
     sources = list({chunk["doc_id"] for chunk in chunks if "doc_id" in chunk})
 
-    return {"retrieved_chunks": chunks, "sources": sources}
+    # 从 rewriter 缓存读取改写后的 query（已在 search_internal 内部调用过）
+    from src.agent.tools import _retriever
+    rewritten = _retriever._rewriter._cache.get(query, query)
+
+    return {"retrieved_chunks": chunks, "sources": sources, "rewritten_query": rewritten}
 
 # ---------------------------------------------------------------------------
 # Generator Node
