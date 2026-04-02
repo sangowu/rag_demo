@@ -37,8 +37,8 @@ class Guardrails:
             base_url=_llm_cfg.get("base_url", "http://localhost:8000/v1"),
             api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
             temperature=0.0,
-            max_tokens=4,
-            extra_body={"enable_thinking": False} if _is_modelscope else {},
+            max_tokens=16,
+            extra_body={"enable_thinking": False},  # 本地和 ModelScope 都禁用 thinking
         )
 
     def check_input(self, query: str) -> tuple[bool, str]:
