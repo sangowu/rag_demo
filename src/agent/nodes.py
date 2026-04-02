@@ -135,13 +135,15 @@ def generator_node(state: AgentState) -> dict:
         HumanMessage(content=human_prompt),
     ])
 
-    usage = response.response_metadata.get("token_usage", {})
+    # llama-server 和 ModelScope 的 token 字段名不同，兼容两者
+    usage = response.response_metadata.get("token_usage") or \
+            response.response_metadata.get("usage", {})
 
     return {
         "answer": response.content,
         "messages": [HumanMessage(state["query"]), response],
         "prompt_tokens": usage.get("prompt_tokens", 0),
-        "completion_tokens": usage.get("completion_tokens", 0)
+        "completion_tokens": usage.get("completion_tokens", 0),
     }
 
 
@@ -194,4 +196,5 @@ def final_node(state: AgentState) -> dict:
     }
     
     return {"final_answer": final_answer,
+            "sources": sources,
             "metrics": metrics}
