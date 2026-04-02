@@ -26,4 +26,3 @@ pyyaml
 typing-extensions
 tqdm
 ragas
-
