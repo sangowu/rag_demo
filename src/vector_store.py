@@ -24,6 +24,7 @@ from pathlib import Path
 import json
 import os
 from src.config import config
+from src.metadata_extractor import extract_doc_metadata
 
 _ROOT = Path(__file__).parent.parent
 _vs_cfg = config["vector_store"]
@@ -124,6 +125,11 @@ class VectorStore:
     # Public API
     # ------------------------------------------------------------------
 
+    def get_known_tickers(self) -> set[str]:
+        """返回 ChromaDB 中所有已索引的 ticker 集合，用于 query 元信息匹配。"""
+        result = self._collection.get(include=["metadatas"])
+        return {m["ticker"] for m in result["metadatas"] if m.get("ticker")}
+
     def get_indexed_ids(self) -> set[str]:
         """返回 collection 中已有的所有 chunk ID。"""
         result = self._collection.get(include=[])
@@ -156,7 +162,13 @@ class VectorStore:
             ids = [f"{c['doc_id']}_{c['chunk_index']}" for c in batch]
             metadatas = []
             for idx, c in enumerate(batch):
-                meta = {"doc_id": c["doc_id"], "chunk_index": c["chunk_index"]}
+                doc_meta = extract_doc_metadata(c["doc_id"])
+                meta = {
+                    "doc_id":      c["doc_id"],
+                    "chunk_index": c["chunk_index"],
+                    "ticker":      doc_meta["ticker"],
+                    "year":        doc_meta["year"],
+                }
                 if _store_sparse:
                     sparse = {k: float(v) for k, v in embed_res["sparse_weights"][idx].items()}
                     meta["sparse_weights"] = json.dumps(sparse)
@@ -170,23 +182,30 @@ class VectorStore:
             )
 
 
-    def search(self, query: str, top_k: int = 5) -> list[dict]:
+    def search(self, query: str, top_k: int = 5, where: dict = None) -> list[dict]:
         """
         Dense 向量检索，返回 top-k 结果。
         custom 模式使用此方法。
 
+        Args:
+            where: ChromaDB 元数据过滤条件，如 {"ticker": {"$eq": "ADI"}}
+                   传入可缩小搜索范围，None 表示全量搜索。
+
         Returns:
             list of dicts: text, doc_id, chunk_index, score
         """
-        if self._model is None: 
+        if self._model is None:
             self._load_model()
 
         query_vec = self._embed_query(query)["dense_vec"]
-        results = self._collection.query(
+        query_kwargs = dict(
             query_embeddings=[query_vec],
             n_results=top_k,
-            include=["documents", "metadatas", "distances"]
+            include=["documents", "metadatas", "distances"],
         )
+        if where:
+            query_kwargs["where"] = where
+        results = self._collection.query(**query_kwargs)
         
         ids = results['ids'][0]
         documents = results['documents'][0]

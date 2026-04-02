@@ -18,6 +18,7 @@ Usage:
 """
 
 from src.config import config
+from src.metadata_extractor import build_chroma_filter, extract_query_metadata
 
 _cfg = config.get("retriever", {})
 _MODE = _cfg.get("mode", "custom")
@@ -40,23 +41,31 @@ class Retriever:
         self._bm25 = bm25_store
         self._reranker = reranker
 
-    def search(self, query: str, top_k: int = None) -> list[dict]:
+    def search(self, query: str, top_k: int = None, meta_filter: bool = False) -> list[dict]:
         """
         统一检索入口，根据 config.retriever.mode 分发。
 
         Args:
-            query : 用户查询文本
-            top_k : 覆盖 config 默认值（可选）
+            query       : 用户查询文本
+            top_k       : 覆盖 config 默认值（可选）
+            meta_filter : True 时从 query 提取 ticker/year，用作 ChromaDB 预过滤
 
         Returns:
             list of dicts: chunk 字段 + score，按 score 降序，长度 ≤ top_k
         """
         k = top_k if top_k is not None else _TOP_K
+
+        where = None
+        if meta_filter:
+            known_tickers = self._vs.get_known_tickers()
+            query_meta = extract_query_metadata(query, known_tickers)
+            where = build_chroma_filter(query_meta)
+
         if _MODE == "m3_hybrid":
             return self._search_m3_hybrid(query, k)
-        return self._search_custom(query, k)
+        return self._search_custom(query, k, where=where)
 
-    def _search_custom(self, query: str, top_k: int) -> list[dict]:
+    def _search_custom(self, query: str, top_k: int, where: dict = None) -> list[dict]:
         """
         custom 模式：dense + BM25 双路召回 → alpha 加权融合 → rerank。
 
@@ -66,7 +75,7 @@ class Retriever:
         alpha = _CUSTOM_CFG.get("alpha", 0.5)
         candidate_k = _CUSTOM_CFG.get("candidate_k", 20)
 
-        dense_results = self._vs.search(query, top_k=candidate_k)
+        dense_results = self._vs.search(query, top_k=candidate_k, where=where)
         bm25_results = self._bm25.search(query, top_k=candidate_k)
         merged = {}
 
