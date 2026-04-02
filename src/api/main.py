@@ -21,10 +21,12 @@ Usage:
 
 import json
 import uuid
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -35,6 +37,15 @@ from src.guardrails import Guardrails
 from src.vector_store import VectorStore
 
 app = FastAPI(title="Structured RAG API", version="0.1.0")
+
+_STATIC_DIR = Path(__file__).parent / "static"
+_STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+
+@app.get("/")
+async def index():
+    return FileResponse(str(_STATIC_DIR / "index.html"))
 
 # 摄入用单例（query 路径不需要直接访问这两个）
 _vs = VectorStore()
@@ -112,7 +123,8 @@ async def query_endpoint(req: QueryRequest):
                     node = list(data.keys())[0]
                     if node == "tool":
                         chunks = data[node].get("retrieved_chunks", [])
-                        yield _sse("retrieved", count=len(chunks))
+                        rewritten = data[node].get("rewritten_query", "")
+                        yield _sse("retrieved", count=len(chunks), rewritten_query=rewritten)
                     elif node == "reflector":
                         reflection = data[node].get("reflection", "")
                         yield _sse("reflection", text=reflection)

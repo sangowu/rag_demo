@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinQA Agentic RAG</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    .container { width: 100%; max-width: 800px; }
+
+    header { text-align: center; margin-bottom: 40px; }
+    header h1 { font-size: 1.8rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    header p  { margin-top: 6px; color: #888; font-size: 0.9rem; }
+
+    /* Input area */
+    .input-row {
+      display: flex;
+      gap: 10px;
+      background: #1a1d27;
+      border: 1px solid #2e3247;
+      border-radius: 12px;
+      padding: 12px 14px;
+      transition: border-color 0.2s;
+    }
+    .input-row:focus-within { border-color: #4f6ef7; }
+
+    #query {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      resize: none;
+      line-height: 1.5;
+      min-height: 24px;
+      max-height: 120px;
+    }
+    #query::placeholder { color: #555; }
+
+    #submit {
+      align-self: flex-end;
+      background: #4f6ef7;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    #submit:hover { background: #3d5ce8; }
+    #submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Pipeline status */
+    #pipeline {
+      display: none;
+      gap: 8px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #555;
+      background: #1a1d27;
+      border: 1px solid #2a2d3e;
+      border-radius: 20px;
+      padding: 4px 12px;
+      transition: color 0.3s, border-color 0.3s;
+    }
+    .step.active  { color: #f7c948; border-color: #f7c948; }
+    .step.done    { color: #4caf50; border-color: #4caf50; }
+    .step .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .step.active .dot { animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* Rewrite notice */
+    #rewrite-notice {
+      display: none;
+      margin-top: 14px;
+      font-size: 0.8rem;
+      color: #888;
+      background: #1a1d27;
+      border-left: 3px solid #4f6ef7;
+      padding: 6px 12px;
+      border-radius: 0 6px 6px 0;
+    }
+    #rewrite-notice span { color: #a0b4ff; font-style: italic; }
+
+    /* Answer card */
+    #answer-card {
+      display: none;
+      margin-top: 24px;
+      background: #1a1d27;
+      border: 1px solid #2e3247;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid #2e3247;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #666;
+    }
+    #answer-text {
+      padding: 16px;
+      line-height: 1.7;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+      min-height: 48px;
+    }
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: #4f6ef7;
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      animation: blink 0.8s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Sources */
+    #sources-card {
+      display: none;
+      margin-top: 12px;
+      background: #1a1d27;
+      border: 1px solid #2e3247;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #sources-list {
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .source-badge {
+      font-size: 0.78rem;
+      background: #12152b;
+      border: 1px solid #2e3247;
+      color: #a0b4ff;
+      border-radius: 6px;
+      padding: 3px 10px;
+    }
+
+    /* Reflection */
+    #reflection-card {
+      display: none;
+      margin-top: 12px;
+      background: #1a1d27;
+      border: 1px solid #2e3247;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #reflection-text {
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      color: #aaa;
+      line-height: 1.6;
+    }
+
+    /* Metrics */
+    #metrics-card {
+      display: none;
+      margin-top: 12px;
+      background: #1a1d27;
+      border: 1px solid #2e3247;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #metrics-list {
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .metric {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .metric-label { font-size: 0.72rem; color: #555; text-transform: uppercase; letter-spacing: 0.6px; }
+    .metric-value { font-size: 1rem; font-weight: 600; color: #e0e0e0; }
+
+    /* Warning */
+    #grounding-warning {
+      display: none;
+      margin-top: 12px;
+      background: #2a1a0e;
+      border: 1px solid #7a4a10;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      color: #f0a060;
+    }
+
+    /* Error */
+    #error-msg {
+      display: none;
+      margin-top: 16px;
+      background: #2a0e0e;
+      border: 1px solid #7a1010;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      color: #f06060;
+    }
+
+    /* Example queries */
+    .examples { margin-top: 28px; }
+    .examples-label { font-size: 0.8rem; color: #555; margin-bottom: 8px; }
+    .example-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      font-size: 0.8rem;
+      background: #1a1d27;
+      border: 1px solid #2e3247;
+      color: #a0b4ff;
+      border-radius: 20px;
+      padding: 5px 14px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .pill:hover { border-color: #4f6ef7; background: #1e2236; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>FinQA Agentic RAG</h1>
+      <p>Hybrid retrieval · LangGraph agent · BGE-M3 + BM25 + Reranker</p>
+    </header>
+
+    <!-- Input -->
+    <div class="input-row">
+      <textarea id="query" rows="1" placeholder="Ask a financial question…"></textarea>
+      <button id="submit">Ask</button>
+    </div>
+
+    <!-- Pipeline steps -->
+    <div id="pipeline">
+      <div class="step" id="step-plan">  <div class="dot"></div> Planning </div>
+      <div class="step" id="step-retr">  <div class="dot"></div> Retrieving </div>
+      <div class="step" id="step-gen">   <div class="dot"></div> Generating </div>
+      <div class="step" id="step-refl">  <div class="dot"></div> Reflecting </div>
+    </div>
+
+    <!-- Rewrite notice -->
+    <div id="rewrite-notice">Query rewritten: <span id="rewrite-text"></span></div>
+
+    <!-- Error -->
+    <div id="error-msg"></div>
+
+    <!-- Answer -->
+    <div id="answer-card">
+      <div class="card-header">Answer</div>
+      <div id="answer-text"></div>
+    </div>
+
+    <!-- Grounding warning -->
+    <div id="grounding-warning">⚠ Answer may not be fully grounded in retrieved documents.</div>
+
+    <!-- Sources -->
+    <div id="sources-card">
+      <div class="card-header">Sources</div>
+      <div id="sources-list"></div>
+    </div>
+
+    <!-- Reflection -->
+    <div id="reflection-card">
+      <div class="card-header">Reflection</div>
+      <div id="reflection-text"></div>
+    </div>
+
+    <!-- Metrics -->
+    <div id="metrics-card">
+      <div class="card-header">Metrics</div>
+      <div id="metrics-list"></div>
+    </div>
+
+    <!-- Example queries -->
+    <div class="examples">
+      <div class="examples-label">Try an example</div>
+      <div class="example-pills">
+        <div class="pill">What was ADI revenue in 2009?</div>
+        <div class="pill">JPM net income Q3 2011?</div>
+        <div class="pill">What were Citigroup's total assets in 2010?</div>
+        <div class="pill">What is the weather today?</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const queryEl    = document.getElementById("query");
+    const submitBtn  = document.getElementById("submit");
+    const pipeline   = document.getElementById("pipeline");
+    const stepPlan   = document.getElementById("step-plan");
+    const stepRetr   = document.getElementById("step-retr");
+    const stepGen    = document.getElementById("step-gen");
+    const stepRefl   = document.getElementById("step-refl");
+    const rewriteDiv = document.getElementById("rewrite-notice");
+    const rewriteTxt = document.getElementById("rewrite-text");
+    const answerCard = document.getElementById("answer-card");
+    const answerText = document.getElementById("answer-text");
+    const sourcesCard= document.getElementById("sources-card");
+    const sourcesList= document.getElementById("sources-list");
+    const reflCard   = document.getElementById("reflection-card");
+    const reflText   = document.getElementById("reflection-text");
+    const metricsCard= document.getElementById("metrics-card");
+    const metricsList= document.getElementById("metrics-list");
+    const warningDiv = document.getElementById("grounding-warning");
+    const errorDiv   = document.getElementById("error-msg");
+
+    // Auto-resize textarea
+    queryEl.addEventListener("input", () => {
+      queryEl.style.height = "auto";
+      queryEl.style.height = queryEl.scrollHeight + "px";
+    });
+
+    // Submit on Enter (Shift+Enter for newline)
+    queryEl.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); }
+    });
+
+    submitBtn.addEventListener("click", ask);
+
+    document.querySelectorAll(".pill").forEach(p =>
+      p.addEventListener("click", () => { queryEl.value = p.textContent; ask(); })
+    );
+
+    function reset() {
+      [answerCard, sourcesCard, reflCard, metricsCard,
+       warningDiv, errorDiv, rewriteDiv].forEach(el => el.style.display = "none");
+      answerText.textContent = "";
+      sourcesList.innerHTML  = "";
+      reflText.textContent   = "";
+      metricsList.innerHTML  = "";
+      [stepPlan, stepRetr, stepGen, stepRefl].forEach(s => {
+        s.classList.remove("active", "done");
+      });
+    }
+
+    function setStep(step, state) {  // state: active | done
+      step.classList.remove("active", "done");
+      step.classList.add(state);
+    }
+
+    async function ask() {
+      const q = queryEl.value.trim();
+      if (!q || submitBtn.disabled) return;
+
+      reset();
+      submitBtn.disabled = true;
+      pipeline.style.display = "flex";
+      setStep(stepPlan, "active");
+
+      try {
+        const resp = await fetch("/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q }),
+        });
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const reader  = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let   buffer  = "";
+        let   cursor  = null;
+
+        // Show answer card with blinking cursor
+        function ensureAnswerVisible() {
+          if (answerCard.style.display === "none" || !answerCard.style.display) {
+            answerCard.style.display = "block";
+            cursor = document.createElement("span");
+            cursor.className = "cursor";
+            answerText.appendChild(cursor);
+          }
+        }
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            let evt;
+            try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+            switch (evt.event) {
+
+              case "retrieved":
+                setStep(stepPlan, "done");
+                setStep(stepRetr, "done");
+                setStep(stepGen, "active");
+                if (evt.rewritten_query && evt.rewritten_query !== q) {
+                  rewriteTxt.textContent = evt.rewritten_query;
+                  rewriteDiv.style.display = "block";
+                }
+                break;
+
+              case "token":
+                ensureAnswerVisible();
+                if (cursor) cursor.before(document.createTextNode(evt.text));
+                else answerText.textContent += evt.text;
+                break;
+
+              case "reflection":
+                setStep(stepGen, "done");
+                setStep(stepRefl, "active");
+                reflText.textContent = evt.text;
+                reflCard.style.display = "block";
+                break;
+
+              case "done":
+                setStep(stepRefl, "done");
+                if (cursor) cursor.remove();
+
+                // Sources
+                if (evt.sources && evt.sources.length) {
+                  sourcesList.innerHTML = evt.sources
+                    .map(s => `<span class="source-badge">${s}</span>`)
+                    .join("");
+                  sourcesCard.style.display = "block";
+                }
+
+                // Grounding warning
+                if (evt.grounding_warning) warningDiv.style.display = "block";
+
+                // Metrics
+                if (evt.metrics) {
+                  const m = evt.metrics;
+                  const items = [
+                    { label: "Latency",  value: m.latency_ms ? `${m.latency_ms} ms` : "—" },
+                    { label: "Retries",  value: m.retry_count ?? "—" },
+                    { label: "Prompt tokens",     value: m.prompt_tokens || "—" },
+                    { label: "Completion tokens", value: m.completion_tokens || "—" },
+                  ];
+                  metricsList.innerHTML = items.map(i =>
+                    `<div class="metric">
+                       <div class="metric-label">${i.label}</div>
+                       <div class="metric-value">${i.value}</div>
+                     </div>`
+                  ).join("");
+                  metricsCard.style.display = "block";
+                }
+                break;
+
+              case "error":
+                setStep(stepPlan, "done");
+                errorDiv.textContent = `⚠ ${evt.message}`;
+                errorDiv.style.display = "block";
+                if (cursor) cursor.remove();
+                break;
+            }
+          }
+        }
+
+      } catch (err) {
+        errorDiv.textContent = `⚠ ${err.message}`;
+        errorDiv.style.display = "block";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
