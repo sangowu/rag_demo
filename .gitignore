@@ -21,6 +21,7 @@ env/
 
 # Data — raw / processed (large files, not tracked)
 data/finqa/docs/
+data/financebench/
 data/chroma/
 data/bm25_index.pkl
 data/ingestion_registry.json
