@@ -53,16 +53,22 @@ class _DocMeta(BaseModel):
     doc_type:     str = Field(default="")
 
 
-_llm = ChatOpenAI(
-    model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "http://localhost:8000/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
-    temperature=0.0,
-    max_tokens=128,
-    extra_body={"enable_thinking": False},
-)
+_structured_llm = None  # 懒加载，避免导入时连接 LLM
 
-_structured_llm = _llm.with_structured_output(_DocMeta)
+
+def _get_structured_llm():
+    global _structured_llm
+    if _structured_llm is None:
+        llm = ChatOpenAI(
+            model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
+            base_url=_llm_cfg.get("base_url", "http://localhost:8000/v1"),
+            api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
+            temperature=0.0,
+            max_tokens=128,
+            extra_body={"enable_thinking": False},
+        )
+        _structured_llm = llm.with_structured_output(_DocMeta)
+    return _structured_llm
 
 
 def extract_doc_metadata_llm(text: str, max_chars: int = 2000) -> dict:
@@ -82,7 +88,7 @@ def extract_doc_metadata_llm(text: str, max_chars: int = 2000) -> dict:
         return {"company_name": "", "ticker": "", "year": "", "doc_type": ""}
 
     try:
-        meta = _structured_llm.invoke(_PROMPT.format(text=excerpt))
+        meta = _get_structured_llm().invoke(_PROMPT.format(text=excerpt))
         return {
             "company_name": meta.company_name.strip(),
             "ticker":       meta.ticker.strip().upper(),
