@@ -23,19 +23,24 @@ Evaluated on 200 QA pairs (retrieval) + 10 samples (RAGAS), using locally genera
 ```
 User Query
     ↓
-[FastAPI /query]  ── SSE streaming ──→  [Streamlit UI]
+[FastAPI /query]  ── SSE streaming ──→  [HTML/JS Demo UI]
+    ↓
+[Guardrails]      — block non-financial queries; check answer grounding
+    ↓
+[Semantic Cache]  — return cached result if cosine similarity > 0.92
     ↓
 [LangGraph Agent]
-    ├─ Planner Node    — decide whether to retrieve
-    ├─ Tool Node       — search_internal (hybrid retrieval)
+    ├─ Planner Node    — decide whether to retrieve + whether to rewrite query
+    ├─ Tool Node       — search_internal (hybrid retrieval + optional query rewriting)
     ├─ Generator Node  — produce answer with inline citations
     ├─ Reflector Node  — self-evaluate quality; retry ≤ 2 times
     └─ Final Node      — format output + source attribution
          ↓
 [Hybrid Retriever]
+    ├─ QueryRewriter   — expand ticker symbols to full company names (ADI → Analog Devices)
     ├─ VectorStore     — ChromaDB + BGE-M3 dense vectors
     ├─ BM25Store       — rank-bm25 sparse index
-    └─ Reranker        — BGE-reranker-v2-m3 cross-encoder
+    └─ Reranker        — BGE-reranker-v2-m3 cross-encoder (uses original query)
 ```
 
 ## Tech Stack
@@ -51,7 +56,7 @@ User Query
 | Tracing | LangSmith |
 | Evaluation | RAGAS + LLM-as-Judge + Hit@K/MRR |
 | API | FastAPI + SSE streaming |
-| Frontend | Streamlit |
+| Frontend | HTML/JS (served from FastAPI) |
 
 ## Project Structure
 
@@ -63,6 +68,7 @@ rag_demo/
 │   ├── finqa/docs/                # FinQA source documents (.md)
 │   ├── chroma/                    # ChromaDB persistent storage
 │   ├── bm25_index.pkl             # BM25 index
+│   ├── semantic_cache.pkl         # Semantic cache (persisted)
 │   ├── doc_summaries.jsonl        # LLM-generated doc summaries
 │   ├── eval_results.json          # Latest evaluation results
 │   └── eval_log.jsonl             # Experiment comparison log
@@ -73,21 +79,25 @@ rag_demo/
 │   ├── vector_store.py            # ChromaDB + BGE-M3 (ticker/year metadata)
 │   ├── bm25_store.py              # BM25 sparse index
 │   ├── reranker.py                # BGE cross-encoder reranker
-│   ├── retriever.py               # Hybrid retrieval + meta/summary filter
+│   ├── retriever.py               # Hybrid retrieval + semantic cache + query rewrite
+│   ├── query_rewriter.py          # LLM-based ticker expansion (ADI → Analog Devices)
+│   ├── semantic_cache.py          # Cosine similarity cache, persisted to pkl
+│   ├── guardrails.py              # Input relevance check + output grounding check
 │   ├── metadata_extractor.py      # ticker/year extraction for pre-filtering
 │   ├── doc_summarizer.py          # LLM batch doc summarization
 │   ├── summary_store.py           # ChromaDB summary collection (2-stage retrieval)
 │   ├── ingestion_registry.py      # Document ingestion tracker
 │   ├── evaluator.py               # RAGAS + Hit@K/MRR batch evaluation
 │   ├── llm_judge.py               # LLM-as-Judge per-query scoring
-│   ├── app.py                     # Streamlit frontend
 │   ├── agent/
 │   │   ├── state.py               # LangGraph AgentState
 │   │   ├── tools.py               # search_internal tool
-│   │   ├── nodes.py               # 5 agent nodes
+│   │   ├── nodes.py               # 5 agent nodes + PlannerDecision structured output
 │   │   └── graph.py               # LangGraph StateGraph
 │   └── api/
-│       └── main.py                # FastAPI SSE endpoints
+│       ├── main.py                # FastAPI SSE endpoints + async ingestion
+│       └── static/
+│           └── index.html         # HTML/JS demo UI
 └── scripts/
     ├── ingest_finqa.py            # Batch document ingestion
     ├── generate_qa.py             # LLM-based QA pair generation
@@ -127,7 +137,7 @@ cmake --build build --config Release -j$(nproc)
 # Start server (Qwen3-8B GGUF Q4_K_M)
 ./build/bin/llama-server \
     -m /path/to/Qwen3-8B-Q4_K_M.gguf \
-    --n-gpu-layers -1 --ctx-size 2048 \
+    --n-gpu-layers -1 --ctx-size 8192 \
     --port 8000 --api-key local
 
 # Update config/settings.yaml: base_url: "http://localhost:8000/v1"
@@ -140,17 +150,34 @@ python src/data_loader.py
 python scripts/ingest_finqa.py
 ```
 
-### 5. Start the API
+### 5. Start the API + Demo UI
 
 ```bash
 uvicorn src.api.main:app --host 0.0.0.0 --port 8080
+# Open http://localhost:8080
 ```
 
-### 6. Start the UI
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | HTML/JS demo UI |
+| `POST` | `/query` | SSE streaming query (LangGraph agent) |
+| `POST` | `/ingest` | Async document ingestion → returns `job_id` |
+| `GET` | `/ingest/{job_id}` | Poll ingestion status and progress |
+
+### Async Ingestion
 
 ```bash
-streamlit run src/app.py
-# Open http://localhost:8501
+# Submit ingestion job
+curl -X POST http://localhost:8080/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"doc_id": "AAPL_2023_page_1.pdf", "text": "..."}'
+# → {"job_id": "a1b2c3d4", "status": "queued"}
+
+# Poll status
+curl http://localhost:8080/ingest/a1b2c3d4
+# → {"status": "done", "progress": 12, "total": 12}
 ```
 
 ## Docker
@@ -167,6 +194,9 @@ docker compose up --build
 ```bash
 # Using generated QA pairs, 10 RAGAS samples + 200 retrieval samples
 python src/evaluator.py --n 10 --n-retrieval 200 --tag baseline --qa-pairs
+
+# With query rewriting enabled
+python src/evaluator.py --n 10 --n-retrieval 200 --tag rewrite --qa-pairs --query-rewrite
 
 # Compare multiple experiment runs
 python scripts/compare_evals.py
@@ -206,6 +236,7 @@ Key settings in `config/settings.yaml`:
 | `retriever.top_k` | `5` | Final top-k results |
 | `retriever.custom.alpha` | `0.7` | Dense weight (1.0=pure dense, 0.0=pure BM25) |
 | `retriever.custom.candidate_k` | `40` | Candidates before reranking |
+| `semantic_cache.threshold` | `0.92` | Cosine similarity threshold for cache hit |
 | `agent.max_retries` | `2` | Max reflection retries |
 | `llm.base_url` | `http://localhost:8000/v1` | LLM endpoint (local or API) |
 
@@ -220,5 +251,8 @@ Key settings in `config/settings.yaml`:
 | metadata pre-filter (ticker/year) | 0.760 | 0.675 | Low ticker recall from query |
 | summary-based 2-stage filter | 0.754 | 0.775 | -32% retrieval time, lower Hit@5 |
 | **ticker-year header injection** | **0.967** | **1.000** | +8% Hit@5, +12% Faithfulness over prev best |
+| query rewriting (full) | 0.967 | 1.000 | +8.7% Answer Relevancy, +68% retrieval latency |
 
 **Key insight**: FinQA documents never mention company ticker symbols in body text — only "the Company" or full names. Prepending a `[TICKER | YEAR]` header to every chunk at index time bridges this gap for both BM25 and dense retrieval, yielding the largest single improvement across all experiments.
+
+**Agentic query rewriting**: The Planner node uses structured output (`PlannerDecision`) to decide whether a query contains ticker symbols needing expansion. This avoids the latency cost of rewriting for queries that already use full company names, while gaining Answer Relevancy improvements for ticker-heavy queries.
