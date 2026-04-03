@@ -117,7 +117,7 @@ def _compute_retrieval_metrics(ranks: list[int | None]) -> dict:
     return metrics
 
 
-def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int = None, use_qa_pairs: bool = False, meta_filter: bool = False, summary_filter: bool = False, query_rewrite: bool = False) -> dict:
+def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int = None, use_qa_pairs: bool = False, meta_filter: bool = False, summary_filter: bool = False, query_rewrite: bool = False, eval_path: Path = None) -> dict:
     """
     批量评测主函数。三阶段分批执行，避免检索模型与 LLM 同时占用显存。
 
@@ -142,7 +142,12 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     rewriter = QueryRewriter() if query_rewrite else None
     retriever = Retriever(VectorStore(), BM25Store(), Reranker(), summary_store=summary_store, query_rewriter=rewriter)
 
-    eval_path = _EVAL_PATH_QA if use_qa_pairs else _EVAL_PATH_FINQA
+    if eval_path is not None:
+        pass  # 使用调用方传入的路径
+    elif use_qa_pairs:
+        eval_path = _EVAL_PATH_QA
+    else:
+        eval_path = _EVAL_PATH_FINQA
     with open(eval_path, encoding="utf-8") as f:
         eval_records = [json.loads(line) for line in f if line.strip()]
 
@@ -307,6 +312,8 @@ def parse_args():
                         help="对每条 query 用 LLM 展开 ticker/模糊公司名再检索")
     parser.add_argument("--output",      type=str, default="data/eval_results.json",
                         help="结果保存路径")
+    parser.add_argument("--eval-path",   type=str, default=None,
+                        help="直接指定 QA pairs 文件路径（覆盖 --qa-pairs）")
     return parser.parse_args()
 
 
@@ -315,4 +322,5 @@ if __name__ == "__main__":
     run_eval(n=args.n, output_path=_ROOT / args.output, tag=args.tag,
              n_retrieval=args.n_retrieval, use_qa_pairs=args.qa_pairs,
              meta_filter=args.meta_filter, summary_filter=args.summary_filter,
-             query_rewrite=args.query_rewrite)
+             query_rewrite=args.query_rewrite,
+             eval_path=Path(args.eval_path) if args.eval_path else None)
