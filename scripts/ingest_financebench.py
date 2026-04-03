@@ -95,27 +95,28 @@ def main():
     new_docs    = 0
     skipped     = 0
 
-    for doc_id, info in docs.items():
-        if registry.is_registered(doc_id):
+    for doc_name, info in docs.items():
+        stored_id = f"{doc_name}.pdf"  # evaluator 会给 gold_id 加 .pdf，保持一致
+        if registry.is_registered(stored_id):
             skipped += 1
             continue
 
-        pdf_path = PDF_DIR / f"{doc_id}.pdf"
+        pdf_path = PDF_DIR / f"{doc_name}.pdf"
 
         # 下载 PDF
         if not pdf_path.exists():
             if args.skip_download:
-                print(f"  [SKIP] {doc_id} — PDF not cached")
+                print(f"  [SKIP] {doc_name} — PDF not cached")
                 continue
-            print(f"  Downloading {doc_id}...")
+            print(f"  Downloading {doc_name}...")
             if not download_pdf(info["doc_link"], pdf_path):
                 continue
             time.sleep(0.5)  # 避免请求过快
 
         # 提取文本
-        print(f"  Processing {doc_id}...")
+        print(f"  Processing {doc_name}...")
         try:
-            doc = loader.load_pdf(str(pdf_path), doc_id=doc_id)
+            doc = loader.load_pdf(str(pdf_path), doc_id=stored_id)
         except Exception as e:
             print(f"  [WARN] PDF 解析失败: {e}")
             continue
@@ -130,7 +131,7 @@ def main():
         header = build_chunk_header(meta)
 
         # Chunk
-        chunks = chunker.split(doc["text"], doc_id=doc_id)
+        chunks = chunker.split(doc["text"], doc_id=stored_id)
         if not chunks:
             continue
 
@@ -138,7 +139,7 @@ def main():
 
         # 写入 ChromaDB
         vs.add_documents(chunks, header_override=header if header else None)
-        registry.register(doc_id)
+        registry.register(stored_id)
         new_docs += 1
         print(f"  → {len(chunks)} chunks, header: {header.strip()}")
 
@@ -146,10 +147,11 @@ def main():
     if new_docs > 0:
         print(f"\nRebuilding BM25 with {len(all_chunks)} new chunks...")
         existing = bm25._chunks or []
+        # stored_id is "doc_name.pdf"; strip suffix to look up docs dict
         header_map = {c["doc_id"]: build_chunk_header({
-            "company_name": docs[c["doc_id"]]["company"],
-            "year":         docs[c["doc_id"]]["period"],
-        }) for c in all_chunks if c["doc_id"] in docs}
+            "company_name": docs[c["doc_id"][:-4]]["company"],
+            "year":         docs[c["doc_id"][:-4]]["period"],
+        }) for c in all_chunks if c["doc_id"][:-4] in docs}
         bm25.build(existing + all_chunks, header_override=header_map)
 
     print(f"\nDone. New: {new_docs} | Skipped: {skipped}")
