@@ -45,16 +45,22 @@ class BM25Store:
         # 与索引对齐的原始 chunk 列表，用于还原检索结果的元数据
         self._chunks = None
 
-    def build(self, chunks: list[dict]) -> None:
+    def build(self, chunks: list[dict], header_override: dict = None) -> None:
         """
         分词并建立 BM25 索引，持久化到 _INDEX_PATH。
 
         Args:
-            chunks: list of dicts with keys text, doc_id, chunk_index
+            chunks          : list of dicts with keys text, doc_id, chunk_index
+            header_override : {doc_id: header_str}，用于通用来源文档覆盖文件名解析
+                              若为 None，从 doc_id 文件名解析 ticker/year（FinQA 兼容）
         """
         def _chunk_text(chunk: dict) -> str:
-            dm = extract_doc_metadata(chunk["doc_id"])
-            header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
+            doc_id = chunk["doc_id"]
+            if header_override and doc_id in header_override:
+                header = header_override[doc_id]
+            else:
+                dm = extract_doc_metadata(doc_id)
+                header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
             return header + chunk["text"]
 
         tokenized_corpus = [_tokenize(_chunk_text(chunk)) for chunk in chunks]

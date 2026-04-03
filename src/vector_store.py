@@ -135,33 +135,37 @@ class VectorStore:
         result = self._collection.get(include=[])
         return set(result["ids"])
 
-    def add_documents(self, chunks: list[dict]) -> None:
+    def add_documents(self, chunks: list[dict], header_override: str = None) -> None:
         """
         Embed chunks and upsert into ChromaDB.
         Skips chunks whose ID is already in the collection.
 
         Args:
-            chunks: list of dicts with keys text, doc_id, chunk_index
+            chunks          : list of dicts with keys text, doc_id, chunk_index
+            header_override : 若提供，所有 chunk 使用此 header（用于通用来源文档）
+                              若为 None，从 doc_id 文件名解析 ticker/year（FinQA 兼容）
         """
-        if self._model is None: 
+        if self._model is None:
             self._load_model()
 
         existing = self.get_indexed_ids()
         new_chunks = [c for c in chunks if f"{c['doc_id']}_{c['chunk_index']}" not in existing]
-        
+
         if not new_chunks:
-            return 
+            return
 
         batch_size = _vs_cfg.get("embed_batch_size", 32)
         for i in range(0, len(new_chunks), batch_size):
             batch = new_chunks[i : i + batch_size]
-            
-            # 在每个 chunk 前加 [TICKER | YEAR] header，
-            # 使 BM25 和 dense 都能通过公司标识关联到正确文档
+
             batch_texts = []
             for c in batch:
-                dm = extract_doc_metadata(c["doc_id"])
-                header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
+                if header_override is not None:
+                    header = header_override
+                else:
+                    # FinQA 兼容：从文件名解析 ticker/year
+                    dm = extract_doc_metadata(c["doc_id"])
+                    header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
                 batch_texts.append(header + c["text"])
             embed_res = self._embed_documents(batch_texts)
             

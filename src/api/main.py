@@ -33,6 +33,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from src.agent.graph import graph
 from src.bm25_store import BM25Store
 from src.chunk_manager import ChunkManager
+from src.doc_metadata_extractor import build_chunk_header, extract_doc_metadata_llm
+from src.document_loader import DocumentLoader
 from src.guardrails import Guardrails
 from src.vector_store import VectorStore
 
@@ -67,8 +69,9 @@ class QueryRequest(BaseModel):
 
 
 class IngestRequest(BaseModel):
-    doc_id: str
-    text: str          # 原始文档文本，API 内部负责 chunk
+    doc_id: str | None = None   # 不填时自动生成
+    text: str | None = None     # 直接提供文本
+    url:  str | None = None     # 或提供 URL，服务端自动抓取
 
 
 # ---------------------------------------------------------------------------
@@ -154,23 +157,38 @@ async def query_endpoint(req: QueryRequest):
 # Background task
 # ---------------------------------------------------------------------------
 
-def _run_ingest(job_id: str, doc_id: str, text: str) -> None:
+def _run_ingest(job_id: str, doc_id: str, text: str, source_type: str = "text") -> None:
     """
-    后台执行文档摄入：chunk → ChromaDB → BM25。
+    后台执行文档摄入：
+      1. LLM 提取文档级元信息（company_name / ticker / year）
+      2. 构造 chunk header（通用，不依赖文件名）
+      3. chunk → ChromaDB → BM25
+
     通过 _jobs[job_id] 向外暴露进度，客户端轮询 GET /ingest/{job_id} 获取。
     """
     try:
+        # Step 1: LLM 提取元信息（只读前 2000 字，成本低）
+        meta   = extract_doc_metadata_llm(text)
+        header = build_chunk_header(meta)
+        _jobs[job_id]["meta"] = meta
+
+        # Step 2: chunk（ChunkManager 负责切分，header 注入在 VectorStore/BM25 层）
         chunks = ChunkManager().split(text, doc_id=doc_id)
-        total = len(chunks)
+        total  = len(chunks)
         _jobs[job_id]["total"] = total
 
-        # 写入 ChromaDB（内部已按 embed_batch_size 分批）
-        _vs.add_documents(chunks)
+        # Step 3: 将 header 注入每个 chunk 的 text（供 embed 和 BM25 使用）
+        if header:
+            for c in chunks:
+                c["_header"] = header   # 标记，vector_store 检测并使用
+
+        # 写入 ChromaDB
+        _vs.add_documents(chunks, header_override=header if header else None)
         _jobs[job_id]["progress"] = total
 
         # 重建 BM25
         existing = _bm25._chunks or []
-        _bm25.build(existing + chunks)
+        _bm25.build(existing + chunks, header_override={doc_id: header} if header else None)
 
         _jobs[job_id]["status"] = "done"
 
@@ -186,13 +204,36 @@ def _run_ingest(job_id: str, doc_id: str, text: str) -> None:
 @app.post("/ingest", status_code=202)
 async def ingest_endpoint(req: IngestRequest, background_tasks: BackgroundTasks):
     """
-    异步摄入文档。立即返回 job_id，实际处理在后台进行。
+    异步摄入文档，支持多来源：
+      - 直接提供 text
+      - 提供 url，服务端自动抓取正文
+
+    LLM 自动提取 company_name / year，注入 chunk header。
     用 GET /ingest/{job_id} 轮询进度。
     """
+    loader = DocumentLoader()
+
+    if req.url:
+        # URL 来源：抓取后异步处理
+        try:
+            doc = loader.load_url(req.url, doc_id=req.doc_id)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}")
+        text        = doc["text"]
+        doc_id      = doc["doc_id"]
+        source_type = "url"
+    elif req.text:
+        text        = req.text
+        doc_id      = req.doc_id or uuid.uuid4().hex[:8]
+        source_type = "text"
+    else:
+        raise HTTPException(status_code=422, detail="Provide either 'text' or 'url'.")
+
     job_id = uuid.uuid4().hex[:8]
-    _jobs[job_id] = {"status": "running", "progress": 0, "total": 0}
-    background_tasks.add_task(_run_ingest, job_id, req.doc_id, req.text)
-    return {"job_id": job_id, "status": "queued"}
+    _jobs[job_id] = {"status": "running", "progress": 0, "total": 0,
+                     "doc_id": doc_id, "source_type": source_type}
+    background_tasks.add_task(_run_ingest, job_id, doc_id, text, source_type)
+    return {"job_id": job_id, "status": "queued", "doc_id": doc_id}
 
 
 # ---------------------------------------------------------------------------
