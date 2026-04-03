@@ -155,8 +155,7 @@ def main():
         all_chunks.extend(doc_chunks)
 
         # 写入 ChromaDB（所有页共用同一 header）
-        header_map_doc = {c["doc_id"]: header for c in doc_chunks}
-        vs.add_documents(doc_chunks, header_override=header_map_doc if header else None)
+        vs.add_documents(doc_chunks, header_override=header if header else None)
         registry.register(stored_id)  # 注册整份文档，避免重复摄入
         new_docs += 1
         print(f"  → {len(doc_chunks)} chunks from {len(pages)} pages, header: {header.strip()}")
