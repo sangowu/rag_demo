@@ -114,16 +114,19 @@ def main():
                 continue
             time.sleep(0.5)  # 避免请求过快
 
-        # 提取文本
+        # 按页拆分：每页独立 doc_id = "{doc_name}_page_{n}.pdf"，与 FinQA 粒度对齐
         print(f"  Processing {doc_name}...")
         try:
-            doc = loader.load_pdf(str(pdf_path), doc_id=stored_id)
+            import pdfplumber
+            pdf_obj = pdfplumber.open(str(pdf_path))
+            pages = pdf_obj.pages
         except Exception as e:
             print(f"  [WARN] PDF 解析失败: {e}")
             continue
 
-        # 用 LLM 从正文提取 ticker，其余字段直接用 dataset 元数据
-        llm_meta = extract_doc_metadata_llm(doc["text"])
+        # 从前两页提取 ticker（避免读全文）
+        first_text = "\n".join(p.extract_text() or "" for p in pages[:2])
+        llm_meta = extract_doc_metadata_llm(first_text)
         meta = {
             "company_name": info["company"],
             "ticker":       llm_meta.get("ticker", ""),
@@ -134,19 +137,29 @@ def main():
             print(f"  ticker: {meta['ticker']}")
         header = build_chunk_header(meta)
 
-        # Chunk
-        chunks = chunker.split(doc["text"], doc_id=stored_id)
-        if not chunks:
+        doc_chunks = []
+        for page_num, page in enumerate(pages):
+            page_text = page.extract_text() or ""
+            if not page_text.strip():
+                continue
+            page_id = f"{doc_name}_page_{page_num}.pdf"
+            page_chunks = chunker.split(page_text, doc_id=page_id)
+            doc_chunks.extend(page_chunks)
+            header_cache[page_id] = header
+
+        pdf_obj.close()
+
+        if not doc_chunks:
             continue
 
-        all_chunks.extend(chunks)
-        header_cache[stored_id] = header
+        all_chunks.extend(doc_chunks)
 
-        # 写入 ChromaDB
-        vs.add_documents(chunks, header_override=header if header else None)
-        registry.register(stored_id)
+        # 写入 ChromaDB（所有页共用同一 header）
+        header_map_doc = {c["doc_id"]: header for c in doc_chunks}
+        vs.add_documents(doc_chunks, header_override=header_map_doc if header else None)
+        registry.register(stored_id)  # 注册整份文档，避免重复摄入
         new_docs += 1
-        print(f"  → {len(chunks)} chunks, header: {header.strip()}")
+        print(f"  → {len(doc_chunks)} chunks from {len(pages)} pages, header: {header.strip()}")
 
     # 重建 BM25
     if new_docs > 0:

@@ -163,9 +163,14 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     for i, record in enumerate(tqdm(eval_records[:n_retrieval], desc="[1/3] Retrieving")):
         question     = record.get("question", "")
         ground_truth = str(record.get("exe_ans", "") or record.get("answer", ""))
-        # 兼容旧版 qa_pairs（doc_id 用 path.stem，缺少 .pdf 后缀）
+        # gold_id 构造：
+        #   FinanceBench（有 evidence_page）→ "{doc_id}_page_{evidence_page}.pdf"
+        #   FinQA / qa_pairs（无 evidence_page）→ "{doc_id}.pdf"（兼容旧格式）
         gold_id = record.get("doc_id", "")
-        if gold_id and not gold_id.endswith(".pdf"):
+        evidence_page = record.get("evidence_page", -1)
+        if evidence_page >= 0:
+            gold_id = f"{gold_id}_page_{evidence_page}.pdf"
+        elif gold_id and not gold_id.endswith(".pdf"):
             gold_id = gold_id + ".pdf"
 
         chunks = retriever.search(question, top_k=max(_KS), rewrite=query_rewrite, meta_filter=meta_filter, summary_filter=summary_filter)
