@@ -92,6 +92,7 @@ def main():
     loader   = DocumentLoader()
 
     all_chunks  = []
+    header_cache = {}  # stored_id → header str，供 BM25 rebuild 使用
     new_docs    = 0
     skipped     = 0
 
@@ -121,13 +122,16 @@ def main():
             print(f"  [WARN] PDF 解析失败: {e}")
             continue
 
-        # LLM 提取元信息（或直接用 dataset 里的 company/period）
+        # 用 LLM 从正文提取 ticker，其余字段直接用 dataset 元数据
+        llm_meta = extract_doc_metadata_llm(doc["text"])
         meta = {
             "company_name": info["company"],
-            "ticker":       "",        # FinanceBench 不提供 ticker，LLM 可以推断
+            "ticker":       llm_meta.get("ticker", ""),
             "year":         info["period"],
             "doc_type":     "10-K",
         }
+        if meta["ticker"]:
+            print(f"  ticker: {meta['ticker']}")
         header = build_chunk_header(meta)
 
         # Chunk
@@ -136,6 +140,7 @@ def main():
             continue
 
         all_chunks.extend(chunks)
+        header_cache[stored_id] = header
 
         # 写入 ChromaDB
         vs.add_documents(chunks, header_override=header if header else None)
@@ -147,11 +152,8 @@ def main():
     if new_docs > 0:
         print(f"\nRebuilding BM25 with {len(all_chunks)} new chunks...")
         existing = bm25._chunks or []
-        # stored_id is "doc_name.pdf"; strip suffix to look up docs dict
-        header_map = {c["doc_id"]: build_chunk_header({
-            "company_name": docs[c["doc_id"][:-4]]["company"],
-            "year":         docs[c["doc_id"][:-4]]["period"],
-        }) for c in all_chunks if c["doc_id"][:-4] in docs}
+        header_map = {c["doc_id"]: header_cache[c["doc_id"]]
+                      for c in all_chunks if c["doc_id"] in header_cache}
         bm25.build(existing + all_chunks, header_override=header_map)
 
     print(f"\nDone. New: {new_docs} | Skipped: {skipped}")
