@@ -1,8 +1,10 @@
 # Structured RAG — FinQA Agentic RAG System
 
-An end-to-end **Agentic RAG** system for structured financial documents (FinQA dataset), built to demonstrate the full AI Engineer stack: hybrid retrieval, LangGraph agentic loop, reflection, observability, and evaluation.
+An end-to-end **Agentic RAG** system for structured financial documents, built to demonstrate the full AI Engineer stack: hybrid retrieval, LangGraph agentic loop, reflection, observability, and cross-dataset evaluation.
 
 ## Evaluation Results
+
+### FinQA (In-Domain)
 
 Best configuration: `fixed chunking / chunk_size=512 / alpha=0.7 / candidate_k=40 / ticker-year header injection`
 
@@ -16,7 +18,23 @@ Best configuration: `fixed chunking / chunk_size=512 / alpha=0.7 / candidate_k=4
 | Context Precision | 0.833 |
 | Answer Relevancy | 0.890 |
 
-Evaluated on 200 QA pairs (retrieval) + 10 samples (RAGAS), using locally generated QA pairs from FinQA documents.
+Evaluated on 200 QA pairs (retrieval) + 50 samples (RAGAS), using FinQA eval.jsonl.
+
+### FinanceBench (Cross-Domain Generalization)
+
+Evaluated on [PatronusAI/financebench](https://huggingface.co/datasets/PatronusAI/financebench): 150 QA pairs across 84 financial documents (10-K/10-Q, 2022–2023).
+Index built from official `evidence_text_full_page` annotations. No fine-tuning or domain adaptation.
+
+| Metric | Score |
+|--------|-------|
+| Hit@1 | 0.627 |
+| Hit@3 | 0.833 |
+| Hit@5 | **0.907** |
+| MRR@5 | 0.738 |
+| Faithfulness | 0.733 |
+| Context Precision | 0.409 |
+
+**Cross-domain Hit@5 drop: 0.967 → 0.907 (−6%)**, demonstrating strong out-of-distribution generalization with zero adaptation.
 
 ## Architecture
 
@@ -84,6 +102,8 @@ rag_demo/
 │   ├── semantic_cache.py          # Cosine similarity cache, persisted to pkl
 │   ├── guardrails.py              # Input relevance check + output grounding check
 │   ├── metadata_extractor.py      # ticker/year extraction for pre-filtering
+│   ├── doc_metadata_extractor.py  # LLM-based metadata extraction for multi-source docs
+│   ├── document_loader.py         # URL / PDF / Markdown loader
 │   ├── doc_summarizer.py          # LLM batch doc summarization
 │   ├── summary_store.py           # ChromaDB summary collection (2-stage retrieval)
 │   ├── ingestion_registry.py      # Document ingestion tracker
@@ -99,7 +119,9 @@ rag_demo/
 │       └── static/
 │           └── index.html         # HTML/JS demo UI
 └── scripts/
-    ├── ingest_finqa.py            # Batch document ingestion
+    ├── ingest_finqa.py            # Batch FinQA document ingestion
+    ├── ingest_financebench.py     # FinanceBench ingestion (evidence_text_full_page)
+    ├── generate_financebench_qa.py # Convert FinanceBench dataset to eval format
     ├── generate_qa.py             # LLM-based QA pair generation
     ├── eval_retrieval.py          # Standalone retrieval evaluation
     ├── compare_evals.py           # Multi-run experiment comparison table
@@ -146,8 +168,13 @@ cmake --build build --config Release -j$(nproc)
 ### 4. Ingest documents
 
 ```bash
+# FinQA
 python src/data_loader.py
 python scripts/ingest_finqa.py
+
+# FinanceBench (no PDF download required)
+python scripts/generate_financebench_qa.py
+python scripts/ingest_financebench.py
 ```
 
 ### 5. Start the API + Demo UI
@@ -192,23 +219,22 @@ docker compose up --build
 ### RAGAS + Hit@K/MRR batch evaluation
 
 ```bash
-# Using generated QA pairs, 10 RAGAS samples + 200 retrieval samples
-python src/evaluator.py --n 10 --n-retrieval 200 --tag baseline --qa-pairs
+# FinQA — 50 RAGAS samples + 200 retrieval samples
+python src/evaluator.py --n 50 --n-retrieval 200 --tag baseline
+
+# FinanceBench — 20 RAGAS samples + 150 retrieval samples
+python src/evaluator.py --tag financebench_evidence \
+  --eval-path data/results/financebench_qa.jsonl \
+  --n 20 --n-retrieval 150
 
 # With query rewriting enabled
-python src/evaluator.py --n 10 --n-retrieval 200 --tag rewrite --qa-pairs --query-rewrite
+python src/evaluator.py --n 10 --n-retrieval 200 --tag rewrite --query-rewrite
 
 # Compare multiple experiment runs
 python scripts/compare_evals.py
 ```
 
 Metrics tracked per run: `faithfulness`, `context_precision`, `answer_relevancy`, `hit@1/3/5`, `mrr@1/3/5`, per-phase latency, token counts.
-
-### Generate QA pairs
-
-```bash
-python scripts/generate_qa.py --n 200 --sample-mode stratified
-```
 
 ### LLM-as-Judge
 
@@ -249,10 +275,13 @@ Key settings in `config/settings.yaml`:
 | recursive chunking | 0.710 | 0.763 | Worse than fixed for FinQA |
 | semantic chunking | 0.715 | 0.749 | Marginal over fixed |
 | metadata pre-filter (ticker/year) | 0.760 | 0.675 | Low ticker recall from query |
-| summary-based 2-stage filter | 0.754 | 0.775 | -32% retrieval time, lower Hit@5 |
-| **ticker-year header injection** | **0.967** | **1.000** | +8% Hit@5, +12% Faithfulness over prev best |
+| summary-based 2-stage filter | 0.754 | 0.775 | −32% retrieval time, lower Hit@5 |
+| **ticker-year header injection** | **0.967** | **1.000** | Largest single improvement |
 | query rewriting (full) | 0.967 | 1.000 | +8.7% Answer Relevancy, +68% retrieval latency |
+| **FinanceBench cross-domain** | **0.907** | 0.733 | Zero-shot, −6% vs FinQA best |
 
-**Key insight**: FinQA documents never mention company ticker symbols in body text — only "the Company" or full names. Prepending a `[TICKER | YEAR]` header to every chunk at index time bridges this gap for both BM25 and dense retrieval, yielding the largest single improvement across all experiments.
+**Key insight — Header injection**: FinQA documents never mention ticker symbols in body text. Prepending `[TICKER | YEAR]` to every chunk at index time bridges the vocabulary gap for both BM25 and dense retrieval, yielding the largest single improvement (+8% Hit@5, +17.5% Faithfulness).
 
-**Agentic query rewriting**: The Planner node uses structured output (`PlannerDecision`) to decide whether a query contains ticker symbols needing expansion. This avoids the latency cost of rewriting for queries that already use full company names, while gaining Answer Relevancy improvements for ticker-heavy queries.
+**Agentic query rewriting**: The Planner node uses structured output (`PlannerDecision`) to decide whether a query contains ticker symbols needing expansion. This avoids latency cost for queries that already use full company names, while gaining Answer Relevancy improvements for ticker-heavy queries.
+
+**Cross-domain generalization**: Zero-shot evaluation on FinanceBench (2022–2023 10-K/10-Q) shows Hit@5 degrading only 6% from FinQA best (0.967 → 0.907), validating that the hybrid retrieval design generalizes across financial document sources without retraining.
