@@ -1,59 +1,32 @@
 """
 ingest_financebench.py
 ======================
-下载 FinanceBench PDF 并摄入 ChromaDB + BM25。
+从 FinanceBench dataset 的 evidence_text_full_page 直接摄入 ChromaDB + BM25。
+
+不需要下载 PDF，使用官方预处理的 evidence 页面文本。
 
 流程：
   1. 从 HuggingFace 加载 FinanceBench
-  2. 按 doc_name 去重（150 条 QA 对应约 25 份文档）
-  3. 下载 PDF → pdfplumber 提取文本
-  4. LLM 提取元信息（company_name / year）
+  2. 按 (doc_name, evidence_page_num) 去重，收集所有唯一 evidence 页
+  3. 构造 doc_id = "{doc_name}_page_{page_num}.pdf"（与 evaluator gold_id 对齐）
+  4. LLM 提取 ticker，构造 header
   5. chunk → embed → 写入 ChromaDB + BM25
 
-注意：
-  - PDF 下载需要网络，耗时较长（约 25 份文档）
-  - 已下载的 PDF 缓存到 data/financebench/pdfs/，不重复下载
-  - 已摄入的文档通过 IngestionRegistry 跳过
+doc_id 格式：{doc_name}_page_{evidence_page_num}.pdf
+  例：3M_2018_10K_page_59.pdf
 
 Usage:
-    python scripts/ingest_financebench.py [--skip-download]
+    python scripts/ingest_financebench.py
 """
 
-import argparse
 import sys
-import time
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
 
-PDF_DIR = _ROOT / "data" / "financebench" / "pdfs"
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--skip-download", action="store_true",
-                        help="跳过 PDF 下载，只处理已缓存的文件")
-    return parser.parse_args()
-
-
-def download_pdf(url: str, dest: Path) -> bool:
-    """下载 PDF 到本地，返回是否成功。"""
-    try:
-        import requests
-        resp = requests.get(url, timeout=30,
-                            headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-        dest.write_bytes(resp.content)
-        return True
-    except Exception as e:
-        print(f"  [WARN] 下载失败: {e}")
-        return False
-
 
 def main():
-    args = parse_args()
-
     try:
         from datasets import load_dataset
     except ImportError:
@@ -63,114 +36,90 @@ def main():
     from src.bm25_store import BM25Store
     from src.chunk_manager import ChunkManager
     from src.doc_metadata_extractor import build_chunk_header, extract_doc_metadata_llm
-    from src.document_loader import DocumentLoader
     from src.ingestion_registry import IngestionRegistry
     from src.vector_store import VectorStore
-
-    PDF_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Loading FinanceBench...")
     ds = load_dataset("PatronusAI/financebench", split="train")
 
-    # 按 doc_name 去重，收集所有唯一文档
-    docs = {}
+    # 收集所有唯一 evidence 页：(doc_name, page_num) → page info
+    pages = {}
     for row in ds:
-        name = row["doc_name"]
-        if name not in docs:
-            docs[name] = {
-                "doc_name": name,
-                "doc_link": row["doc_link"],
-                "company":  row["company"],
-                "period":   str(row["doc_period"]),
-            }
-    print(f"Unique documents: {len(docs)}")
+        doc_name = row["doc_name"]
+        company  = row["company"]
+        period   = str(row["doc_period"])
+        for ev in (row["evidence"] or []):
+            page_num  = ev.get("evidence_page_num", -1)
+            full_text = ev.get("evidence_text_full_page", "").strip()
+            if page_num < 0 or not full_text:
+                continue
+            key = (doc_name, page_num)
+            if key not in pages:
+                pages[key] = {
+                    "text":    full_text,
+                    "company": company,
+                    "period":  period,
+                }
+
+    print(f"Unique evidence pages: {len(pages)}")
 
     vs       = VectorStore()
     bm25     = BM25Store()
     chunker  = ChunkManager()
     registry = IngestionRegistry()
-    loader   = DocumentLoader()
 
-    all_chunks  = []
-    header_cache = {}  # stored_id → header str，供 BM25 rebuild 使用
-    new_docs    = 0
-    skipped     = 0
+    all_chunks   = []
+    header_cache = {}   # page_id → header str
+    ticker_cache = {}   # doc_name → ticker（每份文档只调一次 LLM）
+    new_pages    = 0
+    skipped      = 0
 
-    for doc_name, info in docs.items():
-        stored_id = f"{doc_name}.pdf"  # evaluator 会给 gold_id 加 .pdf，保持一致
-        if registry.is_registered(stored_id):
+    for (doc_name, page_num), info in pages.items():
+        page_id = f"{doc_name}_page_{page_num}.pdf"
+
+        if registry.is_registered(page_id):
             skipped += 1
             continue
 
-        pdf_path = PDF_DIR / f"{doc_name}.pdf"
+        # LLM 提取 ticker（每份文档只提取一次）
+        if doc_name not in ticker_cache:
+            llm_meta = extract_doc_metadata_llm(info["text"])
+            ticker_cache[doc_name] = llm_meta.get("ticker", "")
+            if ticker_cache[doc_name]:
+                print(f"  [{doc_name}] ticker: {ticker_cache[doc_name]}")
 
-        # 下载 PDF
-        if not pdf_path.exists():
-            if args.skip_download:
-                print(f"  [SKIP] {doc_name} — PDF not cached")
-                continue
-            print(f"  Downloading {doc_name}...")
-            if not download_pdf(info["doc_link"], pdf_path):
-                continue
-            time.sleep(0.5)  # 避免请求过快
-
-        # 按页拆分：每页独立 doc_id = "{doc_name}_page_{n}.pdf"，与 FinQA 粒度对齐
-        print(f"  Processing {doc_name}...")
-        try:
-            import pdfplumber
-            pdf_obj = pdfplumber.open(str(pdf_path))
-            pages = pdf_obj.pages
-        except Exception as e:
-            print(f"  [WARN] PDF 解析失败: {e}")
-            continue
-
-        # 从前两页提取 ticker（避免读全文）
-        first_text = "\n".join(p.extract_text() or "" for p in pages[:2])
-        llm_meta = extract_doc_metadata_llm(first_text)
         meta = {
             "company_name": info["company"],
-            "ticker":       llm_meta.get("ticker", ""),
+            "ticker":       ticker_cache[doc_name],
             "year":         info["period"],
-            "doc_type":     "10-K",
         }
-        if meta["ticker"]:
-            print(f"  ticker: {meta['ticker']}")
         header = build_chunk_header(meta)
 
-        doc_chunks = []
-        for page_num, page in enumerate(pages):
-            page_text = page.extract_text() or ""
-            if not page_text.strip():
-                continue
-            page_id = f"{doc_name}_page_{page_num}.pdf"
-            page_chunks = chunker.split(page_text, doc_id=page_id)
-            doc_chunks.extend(page_chunks)
-            header_cache[page_id] = header
-
-        pdf_obj.close()
-
-        if not doc_chunks:
+        chunks = chunker.split(info["text"], doc_id=page_id)
+        if not chunks:
             continue
 
-        all_chunks.extend(doc_chunks)
+        all_chunks.extend(chunks)
+        for c in chunks:
+            header_cache[c["doc_id"]] = header
 
-        # 写入 ChromaDB（所有页共用同一 header）
-        vs.add_documents(doc_chunks, header_override=header if header else None)
-        registry.register(stored_id)  # 注册整份文档，避免重复摄入
-        new_docs += 1
-        print(f"  → {len(doc_chunks)} chunks from {len(pages)} pages, header: {header.strip()}")
+        vs.add_documents(chunks, header_override=header if header else None)
+        registry.register(page_id)
+        new_pages += 1
+
+    print(f"\nIngested {new_pages} new pages | Skipped {skipped}")
 
     # 重建 BM25
-    if new_docs > 0:
-        print(f"\nRebuilding BM25 with {len(all_chunks)} new chunks...")
+    if new_pages > 0:
+        print(f"Rebuilding BM25 with {len(all_chunks)} new chunks...")
         existing = bm25._chunks or []
         header_map = {c["doc_id"]: header_cache[c["doc_id"]]
                       for c in all_chunks if c["doc_id"] in header_cache}
         bm25.build(existing + all_chunks, header_override=header_map)
+        print("BM25 rebuilt.")
 
-    print(f"\nDone. New: {new_docs} | Skipped: {skipped}")
-    print("Run evaluation:")
-    print("  python src/evaluator.py --tag financebench "
+    print("\nRun evaluation:")
+    print("  python src/evaluator.py --tag financebench_evidence "
           "--eval-path data/results/financebench_qa.jsonl --n 20 --n-retrieval 150")
 
 

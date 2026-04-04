@@ -49,8 +49,9 @@ def main():
                 "doc_type":    row["doc_type"],
                 "question_type": row["question_type"],
                 # 黄金 evidence（用于 Hit@K 的 ground truth）
-                "evidence_text": row["evidence"][0]["evidence_text"] if row["evidence"] else "",
-                "evidence_page": row["evidence"][0]["evidence_page_num"] if row["evidence"] else -1,
+                "evidence_text":      row["evidence"][0]["evidence_text"] if row["evidence"] else "",
+                "evidence_page":      row["evidence"][0]["evidence_page_num"] if row["evidence"] else -1,
+                "evidence_full_page": row["evidence"][0]["evidence_text_full_page"] if row["evidence"] else "",
             }
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
             written += 1
