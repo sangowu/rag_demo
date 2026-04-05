@@ -54,6 +54,8 @@ Mixed evaluation uses a harder retrieval setup — all documents from both datas
 
 ## Architecture
 
+![System Architecture](docs/architecture.png)
+
 ```
 User Query
     ↓
