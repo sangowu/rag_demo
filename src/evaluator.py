@@ -104,7 +104,7 @@ def _generate_answer(question: str, contexts: list[str]) -> tuple[str, int, int]
     )
 
 
-def _build_prompt(question: str, contexts: list[str], max_context_chars: int = 12000) -> str:
+def _build_prompt(question: str, contexts: list[str], max_context_chars: int = 24000) -> str:
     """
     拼接 context + question，并对 context 总长度做硬截断。
     max_context_chars=12000 chars ≈ 3000 tokens，为输出预留充足空间。
