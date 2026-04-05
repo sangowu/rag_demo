@@ -9,7 +9,8 @@ Usage:
     chunks = cm.split(text, doc_id="ADI_2009_page_49.pdf")
 """
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
+
 from src.config import config
 
 _cfg = config["chunking"]
@@ -54,11 +55,23 @@ class ChunkManager:
         chunk_size: Optional[int] = None,
         overlap: Optional[int] = None,
         strategy: Optional[Literal["fixed", "recursive", "semantic"]] = None,
+        semantic_embeddings: Optional[Any] = None,
     ):
+        """
+        Args:
+            chunk_size: Token window size for fixed/recursive strategies.
+            overlap:  Overlap tokens for fixed/recursive strategies.
+            strategy: Splitting strategy name from config or override.
+            semantic_embeddings: Optional LangChain Embeddings (e.g. from
+                VectorStore.langchain_dense_embeddings()). When set and strategy
+                is semantic, reuses the same BGE-M3 as ingestion instead of
+                loading HuggingFaceEmbeddings separately.
+        """
         self.chunk_size = chunk_size if chunk_size is not None else _cfg["chunk_size"]
         self.overlap = overlap if overlap is not None else _cfg["overlap"]
         self.strategy = strategy if strategy is not None else _cfg["strategy"]
-        self._semantic_embeddings = None
+        self._injected_semantic_embeddings = semantic_embeddings
+        self._lazy_hf_semantic_embeddings = None
 
     def split(self, text: str, doc_id: str) -> list[dict]:
         """
@@ -156,10 +169,16 @@ class ChunkManager:
         blocks = _extract_blocks(text)
         result = []
 
-        if self._semantic_embeddings is None:
-            self._semantic_embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-m3")
+        if self._injected_semantic_embeddings is not None:
+            emb = self._injected_semantic_embeddings
+        else:
+            if self._lazy_hf_semantic_embeddings is None:
+                self._lazy_hf_semantic_embeddings = HuggingFaceEmbeddings(
+                    model_name="BAAI/bge-m3"
+                )
+            emb = self._lazy_hf_semantic_embeddings
         splitter = SemanticChunker(
-            embeddings=self._semantic_embeddings,
+            embeddings=emb,
             breakpoint_threshold_type="percentile"
         )
 

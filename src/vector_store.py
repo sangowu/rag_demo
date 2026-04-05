@@ -22,17 +22,94 @@ Usage:
 """
 from pathlib import Path
 import json
-import os
+import logging
+from langchain_core.embeddings import Embeddings
+
 from src.config import config
 from src.metadata_extractor import extract_doc_metadata
 
 _ROOT = Path(__file__).parent.parent
 _vs_cfg = config["vector_store"]
 _r_cfg = config["retriever"]
+_chunk_cfg = config.get("chunking") or {}
+_logger = logging.getLogger(__name__)
 
 _store_sparse = _vs_cfg.get("store_sparse", False)
 _d_w = _r_cfg.get("m3_hybrid").get("dense_weight")
 _s_w = _r_cfg.get("m3_hybrid").get("sparse_weight")
+
+
+class VectorStoreDenseLangchainEmbeddings(Embeddings):
+    """
+    LangChain Embeddings adapter backed by the same BGEM3FlagModel as VectorStore.
+
+    SemanticChunker calls embed_documents with many sentences at once; this class
+    re-batches internally so VRAM stays bounded.
+
+    Args:
+        vector_store: VectorStore instance that owns the shared model.
+        batch_size:   Max texts per encode_corpus call; defaults from config
+                      chunking.semantic_embed_batch_size or vector_store.embed_batch_size.
+    """
+
+    def __init__(self, vector_store: "VectorStore", batch_size: int | None = None):
+        self._vs = vector_store
+        default_bs = _chunk_cfg.get("semantic_embed_batch_size")
+        if default_bs is None:
+            default_bs = _vs_cfg.get("embed_batch_size", 32)
+        self._batch_size = int(batch_size) if batch_size is not None else int(default_bs)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """
+        Encode document texts to dense vectors using the shared BGE-M3 model.
+
+        Args:
+            texts: Non-empty list of strings to embed.
+
+        Returns:
+            One dense vector per input string, same order.
+
+        Raises:
+            Exception: Propagated from FlagEmbedding / CUDA if encoding fails.
+        """
+        if not texts:
+            return []
+        self._vs._load_model()
+        out: list[list[float]] = []
+        for i in range(0, len(texts), self._batch_size):
+            batch = texts[i : i + self._batch_size]
+            try:
+                embed_res = self._vs._embed_documents(batch)
+            except Exception as exc:
+                _logger.error(
+                    "embed_documents batch failed (start=%s, len=%s): %s",
+                    i,
+                    len(batch),
+                    exc,
+                )
+                raise
+            out.extend(embed_res["dense_vecs"])
+        return out
+
+    def embed_query(self, text: str) -> list[float]:
+        """
+        Encode a single query string to a dense vector.
+
+        Args:
+            text: Query text.
+
+        Returns:
+            Dense embedding vector.
+
+        Raises:
+            Exception: Propagated from FlagEmbedding / CUDA if encoding fails.
+        """
+        try:
+            return self._vs._embed_query(text)["dense_vec"]
+        except Exception as exc:
+            _logger.error("embed_query failed: %s", exc)
+            raise
+
 
 class VectorStore:
     def __init__(self):
@@ -47,6 +124,7 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"}
         )
         self._model = None
+        self._langchain_dense_embeddings: VectorStoreDenseLangchainEmbeddings | None = None
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -124,6 +202,29 @@ class VectorStore:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def langchain_dense_embeddings(
+        self,
+        batch_size: int | None = None,
+    ) -> VectorStoreDenseLangchainEmbeddings:
+        """
+        Return a LangChain Embeddings object that shares this store's BGE-M3 model.
+
+        Use with ChunkManager(semantic_embeddings=...) when strategy is semantic
+        to avoid loading a second SentenceTransformer copy.
+
+        Args:
+            batch_size: Override semantic embedding batch size; None uses config.
+
+        Returns:
+            Cached VectorStoreDenseLangchainEmbeddings (one per VectorStore).
+        """
+        if self._langchain_dense_embeddings is None:
+            self._langchain_dense_embeddings = VectorStoreDenseLangchainEmbeddings(
+                self,
+                batch_size=batch_size,
+            )
+        return self._langchain_dense_embeddings
 
     def get_known_tickers(self) -> set[str]:
         """返回 ChromaDB 中所有已索引的 ticker 集合，用于 query 元信息匹配。"""
@@ -290,6 +391,8 @@ class VectorStore:
             del self._model
             self._model = None
             torch.cuda.empty_cache()
+        # Next langchain_dense_embeddings() still returns the same adapter; it will
+        # reload the model on first encode.
 
     def delete_by_doc_id(self, doc_id: str) -> None:
         """删除某文档的所有 chunk。"""

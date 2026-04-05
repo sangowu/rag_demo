@@ -173,7 +173,9 @@ def _run_ingest(job_id: str, doc_id: str, text: str, source_type: str = "text") 
         _jobs[job_id]["meta"] = meta
 
         # Step 2: chunk（ChunkManager 负责切分，header 注入在 VectorStore/BM25 层）
-        chunks = ChunkManager().split(text, doc_id=doc_id)
+        chunks = ChunkManager(
+            semantic_embeddings=_vs.langchain_dense_embeddings(),
+        ).split(text, doc_id=doc_id)
         total  = len(chunks)
         _jobs[job_id]["total"] = total
 

@@ -65,7 +65,7 @@ def main():
 
     vs       = VectorStore()
     bm25     = BM25Store()
-    chunker  = ChunkManager()
+    chunker  = ChunkManager(semantic_embeddings=vs.langchain_dense_embeddings())
     registry = IngestionRegistry()
 
     all_chunks   = []
