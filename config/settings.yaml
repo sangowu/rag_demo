@@ -1,7 +1,7 @@
 chunking:
-  chunk_size: 1024
-  overlap: 128
-  strategy: "semantic"  # 可选: "fixed", "recursive", "semantic"
+  chunk_size: 512
+  overlap: 64
+  strategy: "fixed"  # 可选: "fixed", "recursive", "semantic"
   # SemanticChunker 调用 embed_documents 时按批编码，避免整页句子一次前向 OOM
   semantic_embed_batch_size: 8
 
