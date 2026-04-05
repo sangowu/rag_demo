@@ -89,7 +89,7 @@ _SYSTEM_PROMPT = (
 
 
 def _generate_answer(question: str, contexts: list[str]) -> tuple[str, int, int]:
-    """用 LLM 基于检索内容生成答案。
+    """用 LLM 基于检索内容生成答案（同步版，供单条调用）。
 
     Returns:
         (answer, prompt_tokens, completion_tokens)
@@ -103,6 +103,50 @@ def _generate_answer(question: str, contexts: list[str]) -> tuple[str, int, int]
         usage.get("prompt_tokens", 0),
         usage.get("completion_tokens", 0),
     )
+
+
+async def _generate_answer_async(
+    question: str,
+    contexts: list[str],
+    semaphore: "asyncio.Semaphore",
+) -> tuple[str, int, int]:
+    """异步版生成答案，受 semaphore 控制并发数，避免 API 限流。"""
+    import asyncio
+    async with semaphore:
+        context = "\n\n".join(f"[{i+1}] {c}" for i, c in enumerate(contexts))
+        human_prompt = f"Context:\n{context}\n\nQuestion: {question}"
+        response = await _llm.ainvoke(
+            [SystemMessage(_SYSTEM_PROMPT), HumanMessage(human_prompt)]
+        )
+        usage = response.response_metadata.get("token_usage", {})
+        return (
+            response.content,
+            usage.get("prompt_tokens", 0),
+            usage.get("completion_tokens", 0),
+        )
+
+
+async def _generate_all_async(
+    retrieved: list[tuple],
+    concurrency: int = 8,
+) -> list[tuple[str, int, int]]:
+    """
+    并发生成所有答案。
+
+    Args:
+        retrieved   : [(question, ground_truth, contexts), ...]
+        concurrency : 最大并发 API 请求数（默认 8，避免触发限流）
+
+    Returns:
+        [(answer, prompt_tokens, completion_tokens), ...]，顺序与 retrieved 一致
+    """
+    import asyncio
+    semaphore = asyncio.Semaphore(concurrency)
+    tasks = [
+        _generate_answer_async(q, ctx, semaphore)
+        for q, _, ctx in retrieved
+    ]
+    return await asyncio.gather(*tasks)
 
 
 def _compute_retrieval_metrics(ranks: list[int | None]) -> dict:
@@ -195,14 +239,20 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
 
     # ------------------------------------------------------------------
     # Phase 2: 批量生成（ModelScope API，GPU 零占用）
+    #   并发 8 路异步请求，比串行快 3-5×
     # ------------------------------------------------------------------
+    import asyncio
+
+    t0 = time.time()
+    print(f"[2/3] Generating {len(retrieved)} answers (async, concurrency=8)...")
+    results = asyncio.run(_generate_all_async(retrieved, concurrency=8))
+    t_generation = round(time.time() - t0, 2)
+
     ragas_samples = []
     total_prompt_tokens = 0
     total_completion_tokens = 0
 
-    t0 = time.time()
-    for question, ground_truth, contexts in tqdm(retrieved, desc="[2/3] Generating"):
-        answer, pt, ct = _generate_answer(question, contexts)
+    for (question, ground_truth, contexts), (answer, pt, ct) in zip(retrieved, results):
         total_prompt_tokens     += pt
         total_completion_tokens += ct
         ragas_samples.append(SingleTurnSample(
@@ -211,7 +261,6 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
             retrieved_contexts=contexts,
             reference=ground_truth,
         ))
-    t_generation = round(time.time() - t0, 2)
 
     # ------------------------------------------------------------------
     # Phase 3: RAGAS 评测

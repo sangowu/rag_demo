@@ -162,6 +162,18 @@ async def query_endpoint(request: Request, req: QueryRequest):
 
     async def event_stream() -> AsyncGenerator[str, None]:
         try:
+            # 实时 token 计数（tiktoken 估算，无需等待 response 结束）
+            try:
+                import tiktoken
+                _enc = tiktoken.get_encoding("cl100k_base")
+                def _count(text: str) -> int:
+                    return len(_enc.encode(text))
+            except Exception:
+                def _count(text: str) -> int:  # fallback: 字符数 / 4
+                    return max(1, len(text) // 4)
+
+            _stream_tokens = 0
+
             history = []
             if req.messages:
                 for m in req.messages:
@@ -207,7 +219,9 @@ async def query_endpoint(request: Request, req: QueryRequest):
                 elif mode == "messages":
                     msg_chunk, metadata = data
                     if metadata.get("langgraph_node") == "generator" and msg_chunk.content:
-                        yield _sse("token", text=msg_chunk.content)
+                        _stream_tokens += _count(msg_chunk.content)
+                        yield _sse("token", text=msg_chunk.content,
+                                   tokens_so_far=_stream_tokens)
         except Exception as e:
             log.error("agent error", error=str(e), query=req.query[:80])
             yield _sse("error", message=str(e))
