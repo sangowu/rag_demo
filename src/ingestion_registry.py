@@ -41,6 +41,11 @@ class IngestionRegistry:
         self._doc_ids.add(doc_id)
         self._save()
 
+    def unregister_many(self, doc_ids: list[str]) -> None:
+        """批量取消注册，立即写盘。"""
+        self._doc_ids -= set(doc_ids)
+        self._save()
+
     def list_all(self) -> list[str]:
         """返回全部已摄入的 doc_id 列表。"""
         return sorted(self._doc_ids)

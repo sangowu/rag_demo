@@ -139,11 +139,13 @@ class ChunkManager:
         """
         Recursive split: try splitting on \\n\\n, then \\n, then space.
         Respect table blocks — never cut inside one.
+        Uses tiktoken for token-based chunk_size (same unit as fixed strategy).
         """
         from langchain_text_splitters import RecursiveCharacterTextSplitter
         blocks = _extract_blocks(text)
         result = []
-        splitter = RecursiveCharacterTextSplitter(
+        # from_tiktoken_encoder 使 chunk_size 单位为 token，与 fixed 策略一致
+        splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
             chunk_size=self.chunk_size,
             chunk_overlap=self.overlap,
             separators=["\n\n", "\n", " "]
@@ -177,9 +179,13 @@ class ChunkManager:
                     model_name="BAAI/bge-m3"
                 )
             emb = self._lazy_hf_semantic_embeddings
+        # breakpoint_threshold_amount=95: 只在相似度最低的 5% 处断句（保守切分）
+        # min_chunk_size: 防止金融短句被切成碎片（单位：字符，~100 tokens）
         splitter = SemanticChunker(
             embeddings=emb,
-            breakpoint_threshold_type="percentile"
+            breakpoint_threshold_type="percentile",
+            breakpoint_threshold_amount=95,
+            min_chunk_size=500,
         )
 
         for block in blocks:
