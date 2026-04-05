@@ -111,7 +111,7 @@ class VectorStoreDenseLangchainEmbeddings(Embeddings):
             raise
 
 
-class VectorStore:
+class VectorStore:  # 隐式实现 VectorStoreBase Protocol（structural subtyping）
     def __init__(self):
         # 初始化 ChromaDB PersistentClient，持久化到 _cfg["chroma_path"]
         # 获取或创建 collection，使用 cosine 距离（metadata={"hnsw:space": "cosine"}）

@@ -20,15 +20,21 @@ Usage:
 """
 
 import json
+import os
+import time
 import uuid
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Security
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from src.agent.graph import graph
 from src.bm25_store import BM25Store
@@ -36,9 +42,31 @@ from src.chunk_manager import ChunkManager
 from src.doc_metadata_extractor import build_chunk_header, extract_doc_metadata_llm
 from src.document_loader import DocumentLoader
 from src.guardrails import Guardrails
+from src.logging_config import get_logger, setup_logging
 from src.vector_store import VectorStore
 
+setup_logging()
+log = get_logger(__name__)
+
+# ── 限流：每 IP 每分钟最多 30 次查询，每分钟最多 10 次摄入 ──
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="Structured RAG API", version="0.1.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ── Bearer Token 认证 ──────────────────────────────────────
+_bearer = HTTPBearer(auto_error=False)
+_API_KEY = os.getenv("RAG_API_KEY", "")   # 未设置时跳过认证（开发模式）
+
+def _require_auth(
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+) -> None:
+    """验证 Bearer token。RAG_API_KEY 未设置时跳过（本地开发）。"""
+    if not _API_KEY:
+        return
+    if credentials is None or credentials.credentials != _API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _STATIC_DIR.mkdir(exist_ok=True)
@@ -48,6 +76,34 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 @app.get("/")
 async def index():
     return FileResponse(str(_STATIC_DIR / "index.html"))
+
+
+# ---------------------------------------------------------------------------
+# GET /health
+# ---------------------------------------------------------------------------
+
+@app.get("/health", tags=["ops"])
+async def health():
+    """
+    健康检查端点，供 Docker / K8s liveness probe 使用。
+
+    返回：
+      status       : "ok"
+      vector_store : ChromaDB 中的 chunk 总数
+      bm25_ready   : BM25 索引是否已加载
+    """
+    try:
+        chunk_count = _vs._collection.count()
+        bm25_ready  = _bm25._index is not None
+    except Exception as e:
+        log.error("health check failed", error=str(e))
+        return JSONResponse(status_code=503, content={"status": "degraded", "error": str(e)})
+
+    return {
+        "status":       "ok",
+        "vector_store": chunk_count,
+        "bm25_ready":   bm25_ready,
+    }
 
 # 摄入用单例（query 路径不需要直接访问这两个）
 _vs = VectorStore()
@@ -87,14 +143,19 @@ def _sse(event: str, **kwargs) -> str:
 # POST /query
 # ---------------------------------------------------------------------------
 
-@app.post("/query")
-async def query_endpoint(req: QueryRequest):
+@app.post("/query", dependencies=[Depends(_require_auth)])
+@limiter.limit("30/minute")
+async def query_endpoint(request: Request, req: QueryRequest):
     """
     调用 LangGraph Agent，以 SSE 流式推送执行进度和最终答案。
     """
+    t0 = time.time()
+    log.info("query received", query=req.query[:80])
+
     # 输入 guardrail：非金融问题直接拒绝，不进入 agent
     ok, reason = _guardrails.check_input(req.query)
     if not ok:
+        log.warning("query blocked by guardrails", reason=reason)
         async def _blocked():
             yield _sse("error", message=reason)
         return StreamingResponse(_blocked(), media_type="text/event-stream")
@@ -148,8 +209,10 @@ async def query_endpoint(req: QueryRequest):
                     if metadata.get("langgraph_node") == "generator" and msg_chunk.content:
                         yield _sse("token", text=msg_chunk.content)
         except Exception as e:
+            log.error("agent error", error=str(e), query=req.query[:80])
             yield _sse("error", message=str(e))
 
+    log.info("query completed", latency_ms=round((time.time() - t0) * 1000))
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
@@ -193,18 +256,21 @@ def _run_ingest(job_id: str, doc_id: str, text: str, source_type: str = "text") 
         _bm25.build(existing + chunks, header_override={doc_id: header} if header else None)
 
         _jobs[job_id]["status"] = "done"
+        log.info("ingest job done", job_id=job_id, doc_id=doc_id, chunks=total)
 
     except Exception as e:
         _jobs[job_id]["status"] = "failed"
         _jobs[job_id]["error"] = str(e)
+        log.error("ingest job failed", job_id=job_id, doc_id=doc_id, error=str(e))
 
 
 # ---------------------------------------------------------------------------
 # POST /ingest
 # ---------------------------------------------------------------------------
 
-@app.post("/ingest", status_code=202)
-async def ingest_endpoint(req: IngestRequest, background_tasks: BackgroundTasks):
+@app.post("/ingest", status_code=202, dependencies=[Depends(_require_auth)])
+@limiter.limit("10/minute")
+async def ingest_endpoint(request: Request, req: IngestRequest, background_tasks: BackgroundTasks):
     """
     异步摄入文档，支持多来源：
       - 直接提供 text
@@ -235,6 +301,7 @@ async def ingest_endpoint(req: IngestRequest, background_tasks: BackgroundTasks)
     _jobs[job_id] = {"status": "running", "progress": 0, "total": 0,
                      "doc_id": doc_id, "source_type": source_type}
     background_tasks.add_task(_run_ingest, job_id, doc_id, text, source_type)
+    log.info("ingest job queued", job_id=job_id, doc_id=doc_id, source=source_type)
     return {"job_id": job_id, "status": "queued", "doc_id": doc_id}
 
 

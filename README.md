@@ -208,9 +208,19 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8080
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/` | HTML/JS demo UI |
-| `POST` | `/query` | SSE streaming query (LangGraph agent) |
-| `POST` | `/ingest` | Async document ingestion → returns `job_id` |
+| `GET` | `/health` | Liveness probe — returns ChromaDB chunk count + BM25 status |
+| `POST` | `/query` | SSE streaming query (LangGraph agent) · rate limit 30/min |
+| `POST` | `/ingest` | Async document ingestion → returns `job_id` · rate limit 10/min |
 | `GET` | `/ingest/{job_id}` | Poll ingestion status and progress |
+
+**Authentication**: set `RAG_API_KEY` env var to enable Bearer token auth. Unset = open (local dev).
+
+```bash
+export RAG_API_KEY=your-secret-key
+curl -H "Authorization: Bearer your-secret-key" http://localhost:8080/query ...
+```
+
+**Logging**: structured JSON logs by default. Set `LOG_FORMAT=text` for human-readable output during development.
 
 ### Async Ingestion
 

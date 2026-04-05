@@ -27,4 +27,7 @@ typing-extensions
 tqdm
 ragas
 
+# API production
+slowapi
+
 
