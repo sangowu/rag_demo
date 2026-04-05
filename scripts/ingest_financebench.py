@@ -27,6 +27,12 @@ sys.path.insert(0, str(_ROOT))
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--force", action="store_true",
+                        help="清除已有 FinanceBench 数据并重新摄入")
+    args = parser.parse_args()
+
     try:
         from datasets import load_dataset
     except ImportError:
@@ -50,7 +56,9 @@ def main():
         period   = str(row["doc_period"])
         for ev in (row["evidence"] or []):
             page_num  = ev.get("evidence_page_num", -1)
-            full_text = ev.get("evidence_text_full_page", "").strip()
+            # evidence_text：官方标注的答案片段，与 FinQA 的 pre_text+table+post_text 逻辑一致
+            # 比 evidence_text_full_page（整页）更短，噪声更少，不会触发 context 超限
+            full_text = ev.get("evidence_text", "").strip()
             if page_num < 0 or not full_text:
                 continue
             key = (doc_name, page_num)
@@ -67,6 +75,21 @@ def main():
     bm25     = BM25Store()
     chunker  = ChunkManager(semantic_embeddings=vs.langchain_dense_embeddings())
     registry = IngestionRegistry()
+
+    # --force：清除旧的 FinanceBench 数据，重新摄入
+    if args.force:
+        fb_page_ids = [
+            f"{doc_name}_page_{page_num}.pdf"
+            for (doc_name, page_num) in pages.keys()
+        ]
+        print(f"[--force] Clearing {len(fb_page_ids)} FinanceBench page_ids...")
+        for pid in fb_page_ids:
+            try:
+                vs.delete_by_doc_id(pid)
+            except Exception:
+                pass
+        registry.unregister_many(fb_page_ids)
+        print("Done. Re-ingesting...")
 
     all_chunks   = []
     header_cache = {}   # page_id → header str
