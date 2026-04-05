@@ -94,8 +94,7 @@ def _generate_answer(question: str, contexts: list[str]) -> tuple[str, int, int]
     Returns:
         (answer, prompt_tokens, completion_tokens)
     """
-    context = "\n\n".join(f"[{i+1}] {c}" for i, c in enumerate(contexts))
-    human_prompt = f"Context:\n{context}\n\nQuestion: {question}"
+    human_prompt = _build_prompt(question, contexts)
     response = _llm.invoke([SystemMessage(_SYSTEM_PROMPT), HumanMessage(human_prompt)])
     usage = response.response_metadata.get("token_usage", {})
     return (
@@ -103,6 +102,27 @@ def _generate_answer(question: str, contexts: list[str]) -> tuple[str, int, int]
         usage.get("prompt_tokens", 0),
         usage.get("completion_tokens", 0),
     )
+
+
+def _build_prompt(question: str, contexts: list[str], max_context_chars: int = 12000) -> str:
+    """
+    拼接 context + question，并对 context 总长度做硬截断。
+    max_context_chars=12000 chars ≈ 3000 tokens，为输出预留充足空间。
+    """
+    parts = []
+    total = 0
+    for i, c in enumerate(contexts):
+        entry = f"[{i+1}] {c}"
+        if total + len(entry) > max_context_chars:
+            # 剩余空间能放下多少就放多少
+            remaining = max_context_chars - total
+            if remaining > 200:
+                parts.append(entry[:remaining] + "...[truncated]")
+            break
+        parts.append(entry)
+        total += len(entry)
+    context = "\n\n".join(parts)
+    return f"Context:\n{context}\n\nQuestion: {question}"
 
 
 async def _generate_answer_async(
@@ -113,8 +133,7 @@ async def _generate_answer_async(
     """异步版生成答案，受 semaphore 控制并发数，避免 API 限流。"""
     import asyncio
     async with semaphore:
-        context = "\n\n".join(f"[{i+1}] {c}" for i, c in enumerate(contexts))
-        human_prompt = f"Context:\n{context}\n\nQuestion: {question}"
+        human_prompt = _build_prompt(question, contexts)
         response = await _llm.ainvoke(
             [SystemMessage(_SYSTEM_PROMPT), HumanMessage(human_prompt)]
         )
