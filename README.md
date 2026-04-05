@@ -36,6 +36,22 @@ Index built from official `evidence_text_full_page` annotations. No fine-tuning 
 
 **Cross-domain Hit@5 drop: 0.967 → 0.907 (−6%)**, demonstrating strong out-of-distribution generalization with zero adaptation.
 
+### Mixed Evaluation (FinQA + FinanceBench)
+
+Stratified mixed evaluation: 150 FinQA + 150 FinanceBench questions (300 total), evaluated against the combined retrieval pool (both corpora as hard negatives). Best configuration: `fixed chunking / chunk_size=1024`.
+
+| Metric | Score |
+|--------|-------|
+| Hit@1 | 0.543 |
+| Hit@3 | 0.733 |
+| Hit@5 | **0.813** |
+| MRR@5 | 0.647 |
+| Faithfulness | 0.852 |
+| Context Precision | 0.391 |
+| Answer Relevancy | 0.513 |
+
+Mixed evaluation uses a harder retrieval setup — all documents from both datasets remain in the retrieval pool, increasing the candidate space and making Hit@K metrics more conservative than single-dataset runs.
+
 ## Architecture
 
 ```
@@ -119,8 +135,9 @@ rag_demo/
 │       └── static/
 │           └── index.html         # HTML/JS demo UI
 └── scripts/
-    ├── ingest_finqa.py            # Batch FinQA document ingestion
+    ├── ingest_finqa.py            # Batch FinQA document ingestion (--force to re-ingest)
     ├── ingest_financebench.py     # FinanceBench ingestion (evidence_text_full_page)
+    ├── merge_eval.py              # Merge FinQA + FinanceBench into mixed eval set
     ├── generate_financebench_qa.py # Convert FinanceBench dataset to eval format
     ├── generate_qa.py             # LLM-based QA pair generation
     ├── eval_retrieval.py          # Standalone retrieval evaluation
@@ -227,6 +244,12 @@ python src/evaluator.py --tag financebench_evidence \
   --eval-path data/results/financebench_qa.jsonl \
   --n 20 --n-retrieval 150
 
+# Mixed (FinQA + FinanceBench) — 50 RAGAS samples + 300 retrieval samples
+python scripts/merge_eval.py   # generates data/eval_mixed.jsonl
+python src/evaluator.py --tag mixed_eval \
+  --eval-path data/eval_mixed.jsonl \
+  --n 50 --n-retrieval 300
+
 # With query rewriting enabled
 python src/evaluator.py --n 10 --n-retrieval 200 --tag rewrite --query-rewrite
 
@@ -268,20 +291,26 @@ Key settings in `config/settings.yaml`:
 
 ## Experiment Findings
 
-| Experiment | Hit@5 | Faithfulness | Notes |
-|-----------|-------|--------------|-------|
-| baseline (alpha=0.4, ck=20) | 0.500 | 0.750 | Starting point |
-| alpha=0.7, candidate_k=40 | 0.896 | 0.925 | +39.6% Hit@5 |
-| recursive chunking | 0.710 | 0.763 | Worse than fixed for FinQA |
-| semantic chunking | 0.715 | 0.749 | Marginal over fixed |
-| metadata pre-filter (ticker/year) | 0.760 | 0.675 | Low ticker recall from query |
-| summary-based 2-stage filter | 0.754 | 0.775 | −32% retrieval time, lower Hit@5 |
-| **ticker-year header injection** | **0.967** | **1.000** | Largest single improvement |
-| query rewriting (full) | 0.967 | 1.000 | +8.7% Answer Relevancy, +68% retrieval latency |
-| **FinanceBench cross-domain** | **0.907** | 0.733 | Zero-shot, −6% vs FinQA best |
+| Experiment | Dataset | Hit@5 | Faithfulness | Notes |
+|-----------|---------|-------|--------------|-------|
+| baseline (alpha=0.4, ck=20) | FinQA | 0.500 | 0.750 | Starting point |
+| alpha=0.7, candidate_k=40 | FinQA | 0.896 | 0.925 | +39.6% Hit@5 |
+| recursive chunking (char-based) | FinQA | 0.710 | 0.763 | Bug: chunk_size was in chars not tokens → 5× smaller chunks |
+| semantic chunking (unconstrained) | FinQA | 0.715 | 0.749 | Bug: min_chunk_size not set → over-splits short financial sentences |
+| metadata pre-filter (ticker/year) | FinQA | 0.760 | 0.675 | Low ticker recall from query |
+| summary-based 2-stage filter | FinQA | 0.754 | 0.775 | −32% retrieval time, lower Hit@5 |
+| **ticker-year header injection** | **FinQA** | **0.967** | **1.000** | Largest single improvement |
+| query rewriting (full) | FinQA | 0.967 | 1.000 | +8.7% Answer Relevancy, +68% retrieval latency |
+| chunk_size=1024 | FinQA | 0.645 | 0.804 | Larger chunks hurt: context too coarse for reranker |
+| **FinanceBench cross-domain** | FinanceBench | **0.907** | 0.733 | Zero-shot, −6% vs FinQA best |
+| Mixed eval (fixed/1024) | Mixed | **0.813** | 0.852 | Both corpora in retrieval pool as hard negatives |
 
-**Key insight — Header injection**: FinQA documents never mention ticker symbols in body text. Prepending `[TICKER | YEAR]` to every chunk at index time bridges the vocabulary gap for both BM25 and dense retrieval, yielding the largest single improvement (+8% Hit@5, +17.5% Faithfulness).
+**Key insight — Header injection**: FinQA documents never mention ticker symbols in body text. Prepending `[TICKER | YEAR]` to every chunk at index time bridges the vocabulary gap for both BM25 and dense retrieval, yielding the largest single improvement (+8% Hit@5, +17.5% Faithfulness). Applied to both FinQA and FinanceBench at ingest time.
+
+**Chunking unit bug**: `RecursiveCharacterTextSplitter` measures `chunk_size` in characters, while `TokenTextSplitter` (fixed strategy) uses tokens. Setting `chunk_size=512` produced 5× smaller chunks for recursive (avg 72 words vs 386 words). Fixed by switching to `from_tiktoken_encoder`. `SemanticChunker` does not accept `chunk_size` at all — fixed by setting `min_chunk_size=500` and `breakpoint_threshold_amount=95` to prevent over-splitting.
 
 **Agentic query rewriting**: The Planner node uses structured output (`PlannerDecision`) to decide whether a query contains ticker symbols needing expansion. This avoids latency cost for queries that already use full company names, while gaining Answer Relevancy improvements for ticker-heavy queries.
 
 **Cross-domain generalization**: Zero-shot evaluation on FinanceBench (2022–2023 10-K/10-Q) shows Hit@5 degrading only 6% from FinQA best (0.967 → 0.907), validating that the hybrid retrieval design generalizes across financial document sources without retraining.
+
+**Mixed evaluation**: Stratified sampling (150 FinQA + 150 FinanceBench, seed=42) with the full combined retrieval pool. Hit@5 0.813 reflects a harder setting than single-dataset runs — all documents from both corpora act as hard negatives.
