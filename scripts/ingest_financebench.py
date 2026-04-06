@@ -56,9 +56,9 @@ def main():
         period   = str(row["doc_period"])
         for ev in (row["evidence"] or []):
             page_num  = ev.get("evidence_page_num", -1)
-            # evidence_text：官方标注的答案片段，与 FinQA 的 pre_text+table+post_text 逻辑一致
-            # 比 evidence_text_full_page（整页）更短，噪声更少，不会触发 context 超限
-            full_text = ev.get("evidence_text", "").strip()
+            # evidence_text_full_page：完整一页文本，与 FinQA pre_text+table+post_text 的
+            # "章节级"粒度一致，评估更真实；context overflow 由 _build_prompt 截断保护
+            full_text = ev.get("evidence_text_full_page", "").strip()
             if page_num < 0 or not full_text:
                 continue
             key = (doc_name, page_num)
