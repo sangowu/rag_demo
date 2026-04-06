@@ -104,7 +104,7 @@ def _generate_answer(question: str, contexts: list[str]) -> tuple[str, int, int]
     )
 
 
-def _build_prompt(question: str, contexts: list[str], max_context_chars: int = 24000) -> str:
+def _build_prompt(question: str, contexts: list[str], max_context_chars: int = 12000) -> str:
     """
     拼接 context + question，并对 context 总长度做硬截断。
     max_context_chars=12000 chars ≈ 3000 tokens，为输出预留充足空间。
@@ -293,7 +293,7 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
         base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
         api_key=_api_key,
         temperature=0,
-        max_tokens=8192,   # RAGAS faithfulness 输出较长，需要足够的 token 空间
+        max_tokens=4096,   # RAGAS faithfulness 输出较长，但受限于 ctx-size 16384
         extra_body={"enable_thinking": False} if _is_modelscope else {},
     )
     ragas_llm = LangchainLLMWrapper(_ragas_chat)
