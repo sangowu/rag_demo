@@ -239,7 +239,9 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
         chunks = retriever.search(question, top_k=max(_KS), rewrite=query_rewrite, meta_filter=meta_filter, summary_filter=summary_filter)
 
         if i < n:
-            contexts = [c["text"] for c in chunks]
+            # 限制传给 RAGAS 的 contexts：top-3 且每条最多 1500 chars
+            # 避免 5×1024-token chunks + RAGAS 模板超出 ctx-size 16384
+            contexts = [c["text"][:1500] for c in chunks[:3]]
             retrieved.append((question, ground_truth, contexts))
 
         retrieved_ids = [c.get("doc_id", "") for c in chunks]
