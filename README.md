@@ -178,7 +178,7 @@ cmake --build build --config Release -j$(nproc)
 # Start server (Qwen3-8B GGUF Q4_K_M)
 ./build/bin/llama-server \
     -m /path/to/Qwen3-8B-Q4_K_M.gguf \
-    --n-gpu-layers -1 --ctx-size 8192 \
+    --n-gpu-layers -1 --ctx-size 16384 \
     --port 8000 --api-key local
 
 # Update config/settings.yaml: base_url: "http://localhost:8000/v1"
