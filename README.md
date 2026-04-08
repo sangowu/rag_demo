@@ -36,21 +36,25 @@ Index built from official `evidence_text_full_page` annotations. No fine-tuning 
 
 **Cross-domain Hit@5 drop: 0.967 → 0.907 (−6%)**, demonstrating strong out-of-distribution generalization with zero adaptation.
 
-### Mixed Evaluation (FinQA + FinanceBench)
+### Mixed Evaluation — Parameter Sweep (FinQA + FinanceBench)
 
-Stratified mixed evaluation: 150 FinQA + 150 FinanceBench questions (300 total), evaluated against the combined retrieval pool (both corpora as hard negatives). Best configuration: `fixed chunking / chunk_size=1024`.
+Stratified mixed evaluation: 150 FinQA + 150 FinanceBench questions (n=50 RAGAS, n_retrieval=300), evaluated against the combined retrieval pool (hard negatives from both corpora).
 
-| Metric | Score |
-|--------|-------|
-| Hit@1 | 0.543 |
-| Hit@3 | 0.733 |
-| Hit@5 | **0.813** |
-| MRR@5 | 0.647 |
-| Faithfulness | 0.852 |
-| Context Precision | 0.391 |
-| Answer Relevancy | 0.513 |
+![Evaluation Results](docs/eval_results.png)
 
-Mixed evaluation uses a harder retrieval setup — all documents from both datasets remain in the retrieval pool, increasing the candidate space and making Hit@K metrics more conservative than single-dataset runs.
+| Config | chunk | alpha | Hit@1 | Hit@3 | Hit@5 | MRR@5 | Faithfulness | CtxPrec | AnsRel |
+|--------|-------|-------|-------|-------|-------|-------|-------------|---------|--------|
+| fixed-512, α=0.7 | fixed/512 | 0.7 | 0.543 | 0.733 | 0.813 | 0.647 | 0.790 | 0.285 | 0.358 |
+| fixed-1024, α=0.7 | fixed/1024 | 0.7 | 0.530 | 0.733 | 0.800 | 0.636 | 0.797 | 0.386 | 0.399 |
+| recur-1024, α=0.7 | recur/1024 | 0.7 | 0.537 | 0.737 | 0.807 | 0.642 | 0.810 | 0.455 | 0.518 |
+| sem-1024, α=0.7 | sem/1024 | 0.7 | 0.513 | 0.730 | 0.790 | 0.624 | 0.815 | 0.337 | 0.416 |
+| **fixed-1024, α=0.4** ✓ | fixed/1024 | 0.4 | 0.533 | 0.720 | 0.793 | 0.634 | **0.876** | 0.435 | 0.436 |
+| recur-1024, α=0.4 | recur/1024 | 0.4 | 0.530 | 0.720 | 0.797 | 0.634 | 0.817 | **0.560** | 0.384 |
+| recur-1024, α=0.3 | recur/1024 | 0.3 | 0.517 | 0.740 | **0.823** | 0.636 | 0.767 | 0.427 | 0.442 |
+
+**Best overall: `fixed/1024 + α=0.4`** — highest Faithfulness (0.876), balanced Hit@5/MRR@5. Lower alpha shifts weight toward BM25, which improves keyword matching for financial tickers and metrics but can reduce answer grounding quality.
+
+Mixed evaluation uses a harder retrieval setup — all documents from both datasets remain in the retrieval pool, making Hit@K metrics more conservative than single-dataset runs.
 
 ## Architecture
 
