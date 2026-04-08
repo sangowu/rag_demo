@@ -23,7 +23,7 @@ retriever:
 
   custom:
     alpha: 0.4                     # 1.0=纯向量, 0.0=纯BM25
-    candidate_k: 40                # rerank 前的候选数量
+    candidate_k: 50                # rerank 前的候选数量
 
   m3_hybrid:
     dense_weight: 0.5
