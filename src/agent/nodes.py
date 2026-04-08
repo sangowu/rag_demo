@@ -122,8 +122,12 @@ def generator_node(state: AgentState) -> dict:
 
     system_prompt = (
         "You are a financial analyst assistant. "
-        "Answer the question using ONLY the provided context. "
-        "Be concise and precise. If the context does not contain enough information, say so."
+        "Answer using ONLY the provided context. "
+        "Structure your response as: "
+        "(1) Start with a direct, one-sentence answer to the question. "
+        "(2) Add supporting numbers or evidence from the context if needed. "
+        "(3) If the context does not contain enough information, say 'The context does not provide this information.' "
+        "Do NOT include preamble, restate the question, or speculate beyond the context."
     )
 
     human_prompt = f"Context:\n{context}\n\nQuestion: {state['query']}"
