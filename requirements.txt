@@ -2,10 +2,7 @@
 fastapi[standard]
 uvicorn[standard]
 pydantic
-vllm
-bitsandbytes
 torch
-llama-cpp-python[server]
 
 # LangGraph / LangChain
 langgraph
@@ -14,7 +11,7 @@ langchain-core
 langchain-openai
 
 # Retrieval
-chromadb
+psycopg2-binary
 rank-bm25
 FlagEmbedding
 

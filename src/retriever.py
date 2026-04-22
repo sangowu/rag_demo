@@ -17,6 +17,8 @@ Usage:
     results = retriever.search("What was ADI revenue in 2009?")
 """
 
+from collections import defaultdict
+
 from src.config import config
 from src.metadata_extractor import build_chroma_filter, extract_query_metadata
 
@@ -99,37 +101,40 @@ class Retriever:
             return self._search_m3_hybrid(retrieval_query, k, original_query=query)
         return self._search_custom(retrieval_query, k, where=where, original_query=query)
 
+    def _rrf_merge(self, result_lists: list[list[dict]], k: int = 60) -> list[dict]:
+        """
+        Reciprocal Rank Fusion：只用排名位置，不依赖原始分数量纲。
+
+        公式：score(doc) = Σ 1 / (k + rank + 1)，rank 从 0 开始
+        k=60 是学术标准默认值，无需调参。
+        """
+        scores: dict[tuple, float] = defaultdict(float)
+        doc_map: dict[tuple, dict] = {}
+
+        for results in result_lists:
+            for rank, r in enumerate(results):
+                key = (r["doc_id"], r["chunk_index"])
+                scores[key] += 1.0 / (k + rank + 1)
+                if key not in doc_map:
+                    doc_map[key] = r
+
+        sorted_keys = sorted(scores, key=scores.__getitem__, reverse=True)
+        return [{**doc_map[key], "score": scores[key]} for key in sorted_keys]
+
     def _search_custom(self, query: str, top_k: int, where: dict = None, original_query: str = None) -> list[dict]:
         """
-        custom 模式：dense + BM25 双路召回 → alpha 加权融合 → rerank。
+        custom 模式：dense + BM25 双路召回 → RRF 融合 → rerank。
 
-        融合公式：final_score = alpha * dense_score + (1 - alpha) * bm25_score
         去重 key：doc_id + chunk_index
         rerank 使用 original_query（未改写的原始问题），保证语义对齐。
         """
-        alpha = _CUSTOM_CFG.get("alpha", 0.5)
         candidate_k = _CUSTOM_CFG.get("candidate_k", 20)
+        rrf_k = _CUSTOM_CFG.get("rrf_k", 60)
 
         dense_results = self._vs.search(query, top_k=candidate_k, where=where)
         bm25_results = self._bm25.search(query, top_k=candidate_k)
-        merged = {}
 
-        for r in dense_results:
-            key = (r["doc_id"], r["chunk_index"])
-            merged[key] = {**r, "dense_score": r["score"], "bm25_score": 0.0}
-        for r in bm25_results:
-            key = (r["doc_id"], r["chunk_index"])
-            if key in merged:
-                merged[key]["bm25_score"] = r["score"]
-            else:
-                merged[key] = {**r, "dense_score": 0.0, "bm25_score": r["score"]}
-
-        diff = 1.0 - alpha
-        candidates = []
-
-        for chunk in merged.values():
-            chunk["score"] = (alpha * chunk["dense_score"]) + (diff * chunk["bm25_score"])
-            candidates.append(chunk)
+        candidates = self._rrf_merge([dense_results, bm25_results], k=rrf_k)
 
         rerank_query = original_query if original_query is not None else query
         results = self._reranker.rerank(rerank_query, candidates, top_k=top_k)

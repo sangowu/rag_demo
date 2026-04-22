@@ -6,13 +6,15 @@ chunking:
   semantic_embed_batch_size: 8
 
 vector_store:
-  chroma_path: "data/chroma/"
-  collection_name: "finqa"
+  pg_dsn: "postgresql://rag:rag@localhost:5432/ragdb"
   embedding_model: "BAAI/bge-m3"
-  embedding_model_path: "/root/autodl-tmp/models/BAAI/bge-m3"
+  embedding_model_path: "./models/BAAI/bge-m3"
   embed_batch_size: 32
   embed_max_token: 1024
-  store_sparse: true               # 是否在 metadata 中存储 sparse weights（m3_hybrid 需要）
+  store_sparse: true               # 是否在 sparse_weights JSONB 列存储（m3_hybrid 需要）
+  hnsw_m: 16
+  hnsw_ef_construction: 64
+  hnsw_ef_search: 100
 
 bm25:
   index_path: "data/bm25_index.pkl"
@@ -22,8 +24,8 @@ retriever:
   top_k: 5
 
   custom:
-    alpha: 0.4                     # 1.0=纯向量, 0.0=纯BM25
     candidate_k: 50                # rerank 前的候选数量
+    rrf_k: 60                      # RRF 平滑常数，标准默认值，无需调整
 
   m3_hybrid:
     dense_weight: 0.5
@@ -44,7 +46,7 @@ llm_qa_gen:
   max_tokens: 512
 
 reranker:
-  model_path: "/root/autodl-tmp/models/BAAI/bge-reranker-v2-m3"
+  model_path: "./models/BAAI/bge-reranker-v2-m3"
 
 agent:
   max_retries: 2                   # Reflector 最大重试次数
