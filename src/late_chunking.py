@@ -59,6 +59,16 @@ class LateChunkingEmbedder:
         if torch.cuda.is_available():
             self._model.cuda()
 
+    def _use_remote(self) -> bool:
+        return bool(_vs_cfg.get("embedding_server_url", "").strip())
+
+    def _remote_embed(self, texts: list[str]) -> list[list[float]]:
+        import requests
+        url = _vs_cfg["embedding_server_url"].rstrip("/") + "/embed"
+        resp = requests.post(url, json={"inputs": texts, "is_query": False}, timeout=120)
+        resp.raise_for_status()
+        return resp.json()["embeddings"]
+
     def embed(self, text: str, chunks: list[dict]) -> list[list[float]]:
         """
         对一篇文档做 late chunking embedding。
@@ -71,6 +81,11 @@ class LateChunkingEmbedder:
             list[list[float]]，长度与 chunks 相同，每项为 1024 维向量。
             若某 chunk 超出截断范围，回退到对该 chunk 文本单独 encode。
         """
+        # 远程模式：直接发 chunk 文本，不做 token 级池化（退化为标准 embedding）
+        if self._use_remote():
+            texts = [chunk["text"] for chunk in chunks]
+            return self._remote_embed(texts)
+
         self._load()
 
         encoding = self._tokenizer(
