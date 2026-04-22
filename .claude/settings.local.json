@@ -12,7 +12,18 @@
       "WebFetch(domain:langfuse.com)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(python3 -c \" import sys, json lines = sys.stdin.read\\(\\).strip\\(\\).split\\('\\\\n'\\) for line in lines: try: r = json.loads\\(line\\) print\\(json.dumps\\(r, indent=2, ensure_ascii=False\\)\\) print\\('---'\\) except: pass \")",
+      "WebFetch(domain:www.indeed.com)",
+      "WebFetch(domain:business.linkedin.com)",
+      "WebFetch(domain:jobright.ai)",
+      "WebFetch(domain:www.ismartrecruit.com)",
+      "WebFetch(domain:techlife.blog)",
+      "WebFetch(domain:www.kore1.com)",
+      "WebFetch(domain:roadmap.sh)",
+      "WebFetch(domain:www.dataexpert.io)"
     ]
   }
 }

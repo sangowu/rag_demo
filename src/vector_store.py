@@ -282,6 +282,71 @@ class VectorStore:
             cur.execute("VACUUM ANALYZE chunks")
         self._conn.autocommit = False
 
+    def add_documents_with_embeddings(
+        self,
+        chunks: list[dict],
+        embeddings: list[list[float]],
+        header_override: str = None,
+    ) -> None:
+        """
+        将预计算好的 embeddings 连同 chunks 写入 PostgreSQL（Late Chunking 专用）。
+        跳过已存在的 chunk ID，其余逻辑与 add_documents 相同。
+
+        Args:
+            chunks     : list of dicts with keys text, doc_id, chunk_index
+            embeddings : 与 chunks 等长的向量列表（1024 维）
+            header_override : 写入 content 列时前置的 header 文本
+        """
+        assert len(chunks) == len(embeddings), "chunks 和 embeddings 长度必须一致"
+        self._ensure_conn()
+
+        existing = self.get_indexed_ids()
+        rows = []
+        for chunk, emb in zip(chunks, embeddings):
+            chunk_id = f"{chunk['doc_id']}_{chunk['chunk_index']}"
+            if chunk_id in existing:
+                continue
+            doc_meta = extract_doc_metadata(chunk["doc_id"])
+            if header_override is not None:
+                content = header_override + chunk["text"]
+            else:
+                dm = extract_doc_metadata(chunk["doc_id"])
+                header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
+                content = header + chunk["text"]
+            rows.append((
+                chunk_id,
+                chunk["doc_id"],
+                chunk["chunk_index"],
+                doc_meta["ticker"],
+                doc_meta["year"],
+                content,
+                emb,
+                None,  # sparse_weights 暂不支持 late chunking 路径
+            ))
+
+        if not rows:
+            return
+
+        with self._conn.cursor() as cur:
+            psycopg2.extras.execute_values(
+                cur,
+                """
+                INSERT INTO chunks (id, doc_id, chunk_index, ticker, year, content, embedding, sparse_weights)
+                VALUES %s
+                ON CONFLICT (id) DO UPDATE SET
+                    content   = EXCLUDED.content,
+                    embedding = EXCLUDED.embedding
+                """,
+                rows,
+                template="(%s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb)",
+            )
+        self._conn.commit()
+
+        self._conn.autocommit = True
+        with self._conn.cursor() as cur:
+            cur.execute("VACUUM ANALYZE chunks")
+        self._conn.autocommit = False
+
     def search(self, query: str, top_k: int = 5, where: dict = None) -> list[dict]:
         """
         Dense 向量检索，返回 top-k 结果。

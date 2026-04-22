@@ -47,9 +47,11 @@ def _parse_header(doc_id: str) -> str:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch-size", type=int, default=64,
-                        help="每批写入 ChromaDB 的 chunk 数（默认 64）")
+                        help="每批写入的 chunk 数（默认 64）")
     parser.add_argument("--force", action="store_true",
-                        help="清除 ChromaDB 中已有的 FinQA 数据并重新摄入（用于 header 格式变更后）")
+                        help="清除已有的 FinQA 数据并重新摄入")
+    parser.add_argument("--late-chunking", action="store_true",
+                        help="使用 Late Chunking：全文 forward pass 后按 chunk 边界池化")
     return parser.parse_args()
 
 
@@ -60,6 +62,12 @@ def main():
     bm25     = BM25Store()
     chunker  = ChunkManager(semantic_embeddings=vs.langchain_dense_embeddings())
     registry = IngestionRegistry()
+
+    if args.late_chunking:
+        from src.late_chunking import LateChunkingEmbedder
+        lc_embedder = LateChunkingEmbedder()
+    else:
+        lc_embedder = None
 
     doc_paths = sorted(DOCS_DIR.glob("*.md"))
     if not doc_paths:
@@ -106,18 +114,21 @@ def main():
         if not chunks:
             continue
 
-        all_chunks.extend(chunks)
         for c in chunks:
             header_map[c["doc_id"]] = header
         registry.register(doc_id)
         new_docs += 1
 
-        # 批量写入 ChromaDB
-        if len(all_chunks) >= args.batch_size:
-            _flush(vs, all_chunks, header_map)
-            all_chunks = []
+        if lc_embedder is not None:
+            # Late Chunking：每篇文档一次全文 forward pass，按 chunk 边界池化
+            _flush_late(vs, lc_embedder, text, chunks, header)
+        else:
+            all_chunks.extend(chunks)
+            if len(all_chunks) >= args.batch_size:
+                _flush(vs, all_chunks, header_map)
+                all_chunks = []
 
-    # 写入剩余 chunks
+    # 写入剩余 chunks（标准模式）
     if all_chunks:
         _flush(vs, all_chunks, header_map)
         print(f"  Indexed {len(all_chunks)} remaining chunks.")
@@ -144,7 +155,7 @@ def main():
 
 
 def _flush(vs: VectorStore, chunks: list[dict], header_map: dict[str, str]) -> None:
-    """按 doc_id 分组，带各自 header 写入 ChromaDB。"""
+    """按 doc_id 分组，带各自 header 写入 PostgreSQL（标准模式）。"""
     from collections import defaultdict
     groups: dict[str, list[dict]] = defaultdict(list)
     for c in chunks:
@@ -152,6 +163,14 @@ def _flush(vs: VectorStore, chunks: list[dict], header_map: dict[str, str]) -> N
     for doc_id, doc_chunks in groups.items():
         header = header_map.get(doc_id)
         vs.add_documents(doc_chunks, header_override=header if header else None)
+
+
+def _flush_late(vs, lc_embedder, doc_text: str, chunks: list[dict], header: str) -> None:
+    """Late Chunking 写入：全文 forward pass → 按 chunk 边界池化 → 写入 PostgreSQL。"""
+    if not chunks:
+        return
+    embeddings = lc_embedder.embed(doc_text, chunks)
+    vs.add_documents_with_embeddings(chunks, embeddings, header_override=header or None)
 
 
 if __name__ == "__main__":
