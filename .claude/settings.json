@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "rag-demo": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["src/mcp_server.py"],
+      "cwd": "D:/Python_Projects/rag_demo",
+      "env": {}
+    }
+  }
+}

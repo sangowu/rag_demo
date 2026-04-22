@@ -5,7 +5,7 @@
 
 ## 替换现有组件
 
-- [ ] **pgvector 替换 ChromaDB**
+- [x] **pgvector 替换 ChromaDB**
   - 迁移 `src/vector_store.py`
   - 建表：chunks（embedding + metadata JSONB）
   - HNSW 索引参数：m=16, ef_construction=64
@@ -37,7 +37,7 @@
   - 返回结构化文本，不返回原始 JSON
   - 配置 `.claude/settings.json` 接入 Claude Code
 
-- [ ] **Late Chunking**
+- [x] **Late Chunking**
   - 改造 ingestion pipeline
   - BGE-M3 输出 token 级向量，按 chunk 边界池化
   - 每个 chunk embedding 包含全文上下文

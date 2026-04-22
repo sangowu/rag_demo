@@ -27,4 +27,7 @@ ragas
 # API production
 slowapi
 
+# MCP Server
+fastmcp
+
 
