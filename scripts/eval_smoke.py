@@ -39,12 +39,27 @@ def parse_args():
 def main():
     args = parse_args()
 
+    vs = VectorStore()
+
+    # 只对已摄入的文档对应的问题评测，避免因采样不全导致误判
+    indexed_ids = vs.get_indexed_ids()
+    indexed_doc_ids = {chunk_id.rsplit("_", 1)[0] for chunk_id in indexed_ids}
+
     with open(_EVAL_PATH, encoding="utf-8") as f:
         eval_records = [json.loads(line) for line in f if line.strip()]
-    samples = eval_records[: args.n]
+
+    eligible = [r for r in eval_records if r.get("doc_id", "") in indexed_doc_ids]
+    if not eligible:
+        print("[ERROR] 没有可评测的样本，请先运行 ingest 脚本摄入文档。")
+        sys.exit(1)
+
+    import random
+    random.seed(42)
+    samples = random.sample(eligible, min(args.n, len(eligible)))
+    print(f"已摄入文档: {len(indexed_doc_ids)} | 可评测问题: {len(eligible)} | 本次抽样: {len(samples)}")
 
     # 初始化 retriever
-    retriever = Retriever(VectorStore(), BM25Store(), Reranker())
+    retriever = Retriever(vs, BM25Store(), Reranker())
 
     hits = 0
     for record in samples:
