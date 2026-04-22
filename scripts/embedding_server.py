@@ -39,6 +39,7 @@ RERANKER_MODEL_PATH = os.environ.get(
     "RERANKER_MODEL_PATH",
     "/root/autodl-tmp/models/BAAI/bge-reranker-v2-m3",
 )
+MAX_LENGTH = int(os.environ.get("EMBED_MAX_LENGTH", "8192"))
 
 app = FastAPI(title="BGE Embedding & Reranker Server")
 
@@ -83,12 +84,12 @@ def embed(req: EmbedRequest):
     t0 = time.perf_counter()
     model = _get_embed_model()
     if req.is_query:
-        result = model.encode_queries(texts, return_dense=True, return_sparse=False, return_colbert_vecs=False)
+        result = model.encode_queries(texts, return_dense=True, return_sparse=False, return_colbert_vecs=False, max_length=MAX_LENGTH)
     else:
-        result = model.encode_corpus(texts, return_dense=True, return_sparse=False, return_colbert_vecs=False)
+        result = model.encode_corpus(texts, return_dense=True, return_sparse=False, return_colbert_vecs=False, max_length=MAX_LENGTH)
     latency_ms = (time.perf_counter() - t0) * 1000
     dim = len(result["dense_vecs"][0]) if len(result["dense_vecs"]) > 0 else 0
-    _logger.info("embed | mode=%s num_texts=%d dim=%d latency=%.0fms", mode, len(texts), dim, latency_ms)
+    _logger.info("embed | mode=%s num_texts=%d dim=%d max_length=%d latency=%.0fms", mode, len(texts), dim, MAX_LENGTH, latency_ms)
     return {"embeddings": result["dense_vecs"].tolist()}
 
 
