@@ -15,6 +15,7 @@ Usage:
 """
 
 import argparse
+import random
 import sys
 from pathlib import Path
 
@@ -52,6 +53,8 @@ def parse_args():
                         help="清除已有的 FinQA 数据并重新摄入")
     parser.add_argument("--late-chunking", action="store_true",
                         help="使用 Late Chunking：全文 forward pass 后按 chunk 边界池化")
+    parser.add_argument("--sample", type=int, default=None,
+                        help="随机抽取 N 个文档进行测试（默认全量）")
     return parser.parse_args()
 
 
@@ -75,7 +78,12 @@ def main():
         print("  Run: python src/data_loader.py")
         sys.exit(1)
 
-    print(f"Found {len(doc_paths)} documents.")
+    if args.sample:
+        random.seed(42)
+        doc_paths = random.sample(doc_paths, min(args.sample, len(doc_paths)))
+        print(f"Sampled {len(doc_paths)} documents (seed=42).")
+    else:
+        print(f"Found {len(doc_paths)} documents.")
 
     # ------------------------------------------------------------------
     # --force: 清除旧的 FinQA 数据（ChromaDB + 注册表），以便重新摄入
