@@ -17,12 +17,15 @@ Usage:
     results = reranker.rerank("What was ADI revenue in 2009?", chunks, top_k=5)
 """
 
+import logging
+import time
 from collections import OrderedDict
 
 from src.config import config
 
 _cfg = config.get("reranker", {})
-_CACHE_SIZE = _cfg.get("cache_size", 1024)   # LRU 最大条目数
+_CACHE_SIZE = _cfg.get("cache_size", 1024)
+_logger = logging.getLogger(__name__)
 
 
 class _LRUCache:
@@ -105,8 +108,13 @@ class Reranker:
             else:
                 miss_indices.append(i)
 
+        cache_hits = len(chunks) - len(miss_indices)
+
         if miss_indices:
             texts = [chunks[i]["text"] for i in miss_indices]
+            mode = "remote" if self._use_remote() else "local"
+            t0 = time.perf_counter()
+
             if self._use_remote():
                 scores = self._remote_rerank(query, texts)
             else:
@@ -114,10 +122,20 @@ class Reranker:
                 pairs = [(query, t) for t in texts]
                 scores = self._model.compute_score(pairs, normalize=True)
 
+            latency_ms = (time.perf_counter() - t0) * 1000
             for i, score in zip(miss_indices, scores):
                 s = float(score)
                 chunks[i]["score"] = s
                 self._cache.put((query, chunks[i]["doc_id"]), s)
+
+            _logger.info(
+                "rerank | mode=%s candidates=%d cache_hits=%d inferred=%d top_k=%d latency=%.0fms",
+                mode, len(chunks), cache_hits, len(miss_indices), top_k, latency_ms,
+            )
+        else:
+            _logger.info(
+                "rerank | all %d candidates served from cache top_k=%d", len(chunks), top_k,
+            )
 
         chunks.sort(key=lambda x: x["score"], reverse=True)
         return chunks[:top_k]

@@ -13,11 +13,23 @@ Endpoints:
     GET  /health  : 健康检查
 """
 
+import logging
 import os
+import time
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("embedding_server.log", encoding="utf-8"),
+    ],
+)
+_logger = logging.getLogger(__name__)
 
 EMBEDDING_MODEL_PATH = os.environ.get(
     "EMBEDDING_MODEL_PATH",
@@ -67,31 +79,30 @@ class RerankRequest(BaseModel):
 @app.post("/embed")
 def embed(req: EmbedRequest):
     texts = req.inputs if isinstance(req.inputs, list) else [req.inputs]
+    mode = "query" if req.is_query else "corpus"
+    t0 = time.perf_counter()
     model = _get_embed_model()
     if req.is_query:
-        result = model.encode_queries(
-            texts,
-            return_dense=True,
-            return_sparse=False,
-            return_colbert_vecs=False,
-        )
+        result = model.encode_queries(texts, return_dense=True, return_sparse=False, return_colbert_vecs=False)
     else:
-        result = model.encode_corpus(
-            texts,
-            return_dense=True,
-            return_sparse=False,
-            return_colbert_vecs=False,
-        )
+        result = model.encode_corpus(texts, return_dense=True, return_sparse=False, return_colbert_vecs=False)
+    latency_ms = (time.perf_counter() - t0) * 1000
+    dim = len(result["dense_vecs"][0]) if len(result["dense_vecs"]) > 0 else 0
+    _logger.info("embed | mode=%s num_texts=%d dim=%d latency=%.0fms", mode, len(texts), dim, latency_ms)
     return {"embeddings": result["dense_vecs"].tolist()}
 
 
 @app.post("/rerank")
 def rerank(req: RerankRequest):
+    t0 = time.perf_counter()
     model = _get_rerank_model()
     pairs = [[req.query, text] for text in req.texts]
     scores = model.compute_score(pairs, normalize=True)
+    latency_ms = (time.perf_counter() - t0) * 1000
     if not isinstance(scores, list):
         scores = scores.tolist()
+    top_score = max(scores) if scores else 0.0
+    _logger.info("rerank | num_pairs=%d top_score=%.4f latency=%.0fms", len(pairs), top_score, latency_ms)
     return {"scores": scores}
 
 
