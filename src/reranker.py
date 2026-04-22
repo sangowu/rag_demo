@@ -53,21 +53,34 @@ class _LRUCache:
         return len(self._cache)
 
 
+_vs_cfg = config.get("vector_store", {})
+
+
 class Reranker:
     def __init__(self):
-        # BGE Reranker 模型懒加载，首次 rerank 时才初始化
         self._model = None
         self._cache = _LRUCache(maxsize=_CACHE_SIZE)
 
+    def _use_remote(self) -> bool:
+        return bool(_vs_cfg.get("embedding_server_url", "").strip())
+
+    def _remote_rerank(self, query: str, texts: list[str]) -> list[float]:
+        import requests
+        url = _vs_cfg["embedding_server_url"].rstrip("/") + "/rerank"
+        resp = requests.post(url, json={"query": query, "texts": texts}, timeout=120)
+        resp.raise_for_status()
+        return resp.json()["scores"]
+
     def _load_model(self):
-        """懒加载 FlagReranker，只初始化一次。"""
         if self._model is None:
             from FlagEmbedding import FlagReranker
+            import torch
             model_name = _cfg.get("model_path") or "BAAI/bge-reranker-v2-m3"
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
             self._model = FlagReranker(
                 model_name,
-                use_fp16=True,
-                devices=["cuda:0"],
+                use_fp16=torch.cuda.is_available(),
+                devices=[device],
             )
 
     def rerank(self, query: str, chunks: list[dict], top_k: int = 5) -> list[dict]:
@@ -83,22 +96,24 @@ class Reranker:
         Returns:
             list of dicts: 原始字段 + score（归一化 0-1），按 score 降序
         """
-        self._load_model()
-
         # 分离缓存命中 / 未命中
         miss_indices = []
         for i, chunk in enumerate(chunks):
-            key = (query, chunk["doc_id"])
-            cached = self._cache.get(key)
+            cached = self._cache.get((query, chunk["doc_id"]))
             if cached is not None:
                 chunk["score"] = cached
             else:
                 miss_indices.append(i)
 
-        # 仅对未命中的 chunk 跑推理
         if miss_indices:
-            pairs  = [(query, chunks[i]["text"]) for i in miss_indices]
-            scores = self._model.compute_score(pairs, normalize=True)
+            texts = [chunks[i]["text"] for i in miss_indices]
+            if self._use_remote():
+                scores = self._remote_rerank(query, texts)
+            else:
+                self._load_model()
+                pairs = [(query, t) for t in texts]
+                scores = self._model.compute_score(pairs, normalize=True)
+
             for i, score in zip(miss_indices, scores):
                 s = float(score)
                 chunks[i]["score"] = s
