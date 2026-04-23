@@ -25,10 +25,12 @@ _REGISTRY_PATH = _ROOT / config.get("ingestion", {}).get(
 
 
 class IngestionRegistry:
-    def __init__(self):
+    def __init__(self, registry_path: "str | Path | None" = None):
+        from pathlib import Path as _Path
+        self._path = _Path(registry_path) if registry_path else _REGISTRY_PATH
         self._doc_ids = set()
-        if _REGISTRY_PATH.exists():
-            with open(_REGISTRY_PATH, "r", encoding="UTF-8") as f:
+        if self._path.exists():
+            with open(self._path, "r", encoding="UTF-8") as f:
                 file = json.load(f)
             self._doc_ids = set(file.get("doc_ids", []))
 
@@ -50,8 +52,14 @@ class IngestionRegistry:
         """返回全部已摄入的 doc_id 列表。"""
         return sorted(self._doc_ids)
 
+    def clear(self) -> None:
+        """清空注册表（删除文件）。"""
+        self._doc_ids = set()
+        if self._path.exists():
+            self._path.unlink()
+
     def _save(self) -> None:
         """将当前注册表写入 JSON 文件。"""
-        _REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(_REGISTRY_PATH, "w", encoding="UTF-8") as f:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._path, "w", encoding="UTF-8") as f:
             json.dump({"doc_ids": sorted(self._doc_ids)}, f, ensure_ascii=False)

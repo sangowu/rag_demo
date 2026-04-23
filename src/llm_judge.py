@@ -22,19 +22,10 @@ import os
 import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from src.config import config
+from src.llm_factory import get_llm
 
-_llm_cfg = config.get("llm", {})
-
-_llm = ChatOpenAI(
-    model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), ""),
-    temperature=0.0,   # 评分要稳定，temperature=0
-    max_tokens=512,
-)
+_llm = get_llm(temperature=0.0, max_output_tokens=512)
 
 _SYSTEM_PROMPT = """You are an expert evaluator for RAG (Retrieval-Augmented Generation) systems.
 Given a question, a generated answer, and the retrieved context, evaluate the answer quality.

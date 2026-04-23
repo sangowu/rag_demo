@@ -14,12 +14,10 @@ LangGraph Agent 的 5 个节点函数。
   - final_node     : 格式化最终输出，附加引用来源
 """
 
-import os
 import time
 import warnings
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 warnings.filterwarnings("ignore", message="Pydantic serializer warnings", category=UserWarning)
@@ -27,19 +25,12 @@ warnings.filterwarnings("ignore", message="Pydantic serializer warnings", catego
 from src.agent.state import AgentState
 from src.agent.tools import _retriever, offload_retrieval_models
 from src.config import config
+from src.llm_factory import get_llm
 
-_llm_cfg = config.get("llm", {})
 _agent_cfg = config.get("agent", {})
 
 # 模块级 LLM 单例
-_llm = ChatOpenAI(
-    model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "http://localhost:8001/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
-    temperature=_llm_cfg.get("temperature", 0.1),
-    max_tokens=_llm_cfg.get("max_tokens", 1024),
-    extra_body={"enable_thinking": False},
-)
+_llm = get_llm()
 
 _MAX_RETRIES = _agent_cfg.get("max_retries", 2)
 
@@ -136,15 +127,12 @@ def generator_node(state: AgentState) -> dict:
         HumanMessage(content=human_prompt),
     ])
 
-    # llama-server 和 ModelScope 的 token 字段名不同，兼容两者
-    usage = response.response_metadata.get("token_usage") or \
-            response.response_metadata.get("usage", {})
-
+    usage = response.response_metadata.get("usage_metadata", {})
     return {
         "answer": response.content,
         "messages": [HumanMessage(state["query"]), response],
-        "prompt_tokens": usage.get("prompt_tokens", 0),
-        "completion_tokens": usage.get("completion_tokens", 0),
+        "prompt_tokens": usage.get("prompt_token_count", 0),
+        "completion_tokens": usage.get("candidates_token_count", 0),
     }
 
 

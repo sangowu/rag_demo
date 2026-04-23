@@ -111,7 +111,44 @@ class ChunkManager:
             last_pos = start_char
 
         return chunks
-        
+
+    def split_parent_child(
+        self,
+        text: str,
+        doc_id: str,
+        child_size: int = 256,
+        child_overlap: int = 32,
+    ) -> list[dict]:
+        """
+        Split into small child chunks (embedded for retrieval) paired with
+        the parent chunk they came from (returned as context to the LLM).
+
+        parent_size = self.chunk_size (configured chunk size, default 1024).
+        Each returned chunk has:
+          embed_text : child chunk text  (what gets vectorized)
+          content    : parent chunk text (what the LLM sees)
+          text       : same as embed_text (for BM25 compatibility)
+        """
+        parent_chunks = self.split(text, doc_id)
+        child_cm = ChunkManager(chunk_size=child_size, overlap=child_overlap, strategy="fixed")
+
+        result = []
+        global_idx = 0
+        for parent in parent_chunks:
+            children = child_cm.split(parent["text"], doc_id)
+            for child in children:
+                result.append({
+                    "doc_id": doc_id,
+                    "chunk_index": global_idx,
+                    "text": child["text"],
+                    "embed_text": child["text"],
+                    "content": parent["text"],
+                    "start_char": child.get("start_char", 0),
+                    "end_char": child.get("end_char", 0),
+                })
+                global_idx += 1
+        return result
+
     def _split_fixed(self, text: str) -> list[str]:
         """
         Fixed-size split: slide a window of chunk_size tokens with overlap.

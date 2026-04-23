@@ -3,16 +3,11 @@ vector_store.py
 ===============
 pgvector + BGE-M3 vector store wrapper.
 
-支持两种检索模式（由 config retriever.mode 控制）：
-  - custom    : 只存储 dense 向量，配合 BM25Store + Reranker 使用
-  - m3_hybrid : 同时存储 dense + sparse 向量，用 BGE-M3 原生混合检索
-
 Provides:
-  - add_documents      : embed chunks，upsert 到 PostgreSQL（跳过已存在的）
-  - search             : dense 向量检索，返回 top-k 结果
-  - search_with_sparse : dense + sparse 混合检索（m3_hybrid 模式用）
-  - delete_by_doc_id   : 删除某文档的所有 chunk
-  - get_indexed_ids    : 返回已索引的所有 chunk ID
+  - add_documents   : embed chunks，upsert 到 PostgreSQL（跳过已存在的）
+  - search          : dense 向量检索，返回 top-k 结果
+  - delete_by_doc_id: 删除某文档的所有 chunk
+  - get_indexed_ids : 返回已索引的所有 chunk ID
 
 Usage:
     from src.vector_store import VectorStore
@@ -39,17 +34,16 @@ _chunk_cfg = config.get("chunking") or {}
 _logger = logging.getLogger(__name__)
 
 _store_sparse = _vs_cfg.get("store_sparse", False)
-_d_w = _r_cfg.get("m3_hybrid").get("dense_weight")
-_s_w = _r_cfg.get("m3_hybrid").get("sparse_weight")
 
 _HNSW_M = _vs_cfg.get("hnsw_m", 16)
 _HNSW_EF_CONSTRUCTION = _vs_cfg.get("hnsw_ef_construction", 64)
 _HNSW_EF_SEARCH = _vs_cfg.get("hnsw_ef_search", 100)
 
-_DDL = """
+# {{table}} becomes {table} after the first .format(), then filled in _init_schema()
+_DDL_TEMPLATE = """
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE IF NOT EXISTS chunks (
+CREATE TABLE IF NOT EXISTS {{table}} (
     id             TEXT PRIMARY KEY,
     doc_id         TEXT NOT NULL,
     chunk_index    INT  NOT NULL,
@@ -60,15 +54,15 @@ CREATE TABLE IF NOT EXISTS chunks (
     sparse_weights JSONB
 );
 
-CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx
-    ON chunks USING hnsw (embedding vector_cosine_ops)
+CREATE INDEX IF NOT EXISTS {{table}}_embedding_hnsw_idx
+    ON {{table}} USING hnsw (embedding vector_cosine_ops)
     WITH (m = {m}, ef_construction = {ef_construction});
 
-CREATE INDEX IF NOT EXISTS chunks_sparse_gin_idx
-    ON chunks USING gin (sparse_weights);
+CREATE INDEX IF NOT EXISTS {{table}}_sparse_gin_idx
+    ON {{table}} USING gin (sparse_weights);
 
-CREATE INDEX IF NOT EXISTS chunks_doc_id_idx
-    ON chunks (doc_id);
+CREATE INDEX IF NOT EXISTS {{table}}_doc_id_idx
+    ON {{table}} (doc_id);
 """.format(m=_HNSW_M, ef_construction=_HNSW_EF_CONSTRUCTION)
 
 
@@ -116,7 +110,8 @@ class VectorStoreDenseLangchainEmbeddings(Embeddings):
 
 
 class VectorStore:
-    def __init__(self):
+    def __init__(self, table_name: str = "chunks"):
+        self._table = table_name
         self._conn = psycopg2.connect(_get_dsn())
         self._conn.autocommit = False
         self._init_schema()
@@ -130,7 +125,7 @@ class VectorStore:
     def _init_schema(self) -> None:
         """建表、建索引（幂等）。"""
         with self._conn.cursor() as cur:
-            cur.execute(_DDL)
+            cur.execute(_DDL_TEMPLATE.format(table=self._table))
         self._conn.commit()
 
     def _ensure_conn(self) -> None:
@@ -195,12 +190,7 @@ class VectorStore:
             "sparse_weights": sparse_data[0] if sparse_data is not None else {},
         }
 
-    @staticmethod
-    def _sparse_score(query_weights: dict, doc_weights: dict) -> float:
-        return sum(
-            q_w * doc_weights.get(str(tid), 0.0)
-            for tid, q_w in query_weights.items()
-        )
+
 
     # ------------------------------------------------------------------
     # Public API
@@ -214,13 +204,13 @@ class VectorStore:
     def get_known_tickers(self) -> set[str]:
         self._ensure_conn()
         with self._conn.cursor() as cur:
-            cur.execute("SELECT DISTINCT ticker FROM chunks WHERE ticker IS NOT NULL")
+            cur.execute(f"SELECT DISTINCT ticker FROM {self._table} WHERE ticker IS NOT NULL")
             return {row[0] for row in cur.fetchall()}
 
     def get_indexed_ids(self) -> set[str]:
         self._ensure_conn()
         with self._conn.cursor() as cur:
-            cur.execute("SELECT id FROM chunks")
+            cur.execute(f"SELECT id FROM {self._table}")
             return {row[0] for row in cur.fetchall()}
 
     def add_documents(self, chunks: list[dict], header_override: str = None) -> None:
@@ -246,16 +236,26 @@ class VectorStore:
         for i in range(0, len(new_chunks), batch_size):
             batch = new_chunks[i : i + batch_size]
 
-            batch_texts = []
+            # embed_text: what to encode into a vector (may differ from stored content)
+            # content: what to return in search results (stored in DB)
+            batch_embed_texts = []
+            batch_content_texts = []
             for c in batch:
-                if header_override is not None:
-                    header = header_override
+                if c.get("embed_text") is not None:
+                    embed_text = c["embed_text"]
+                elif header_override is not None:
+                    dm = extract_doc_metadata(c["doc_id"])
+                    embed_text = header_override + c["text"]
                 else:
                     dm = extract_doc_metadata(c["doc_id"])
                     header = f"[{dm['ticker']} | {dm['year']}]\n" if dm["ticker"] else ""
-                batch_texts.append(header + c["text"])
+                    embed_text = header + c["text"]
+                batch_embed_texts.append(embed_text)
 
-            embed_res = self._embed_documents(batch_texts)
+                content = c.get("content") if c.get("content") is not None else embed_text
+                batch_content_texts.append(content)
+
+            embed_res = self._embed_documents(batch_embed_texts)
 
             rows = []
             for idx, c in enumerate(batch):
@@ -270,7 +270,7 @@ class VectorStore:
                     c["chunk_index"],
                     doc_meta["ticker"],
                     doc_meta["year"],
-                    batch_texts[idx],
+                    batch_content_texts[idx],
                     embed_res["dense_vecs"][idx],
                     sparse_json,
                 ))
@@ -278,8 +278,8 @@ class VectorStore:
             with self._conn.cursor() as cur:
                 psycopg2.extras.execute_values(
                     cur,
-                    """
-                    INSERT INTO chunks (id, doc_id, chunk_index, ticker, year, content, embedding, sparse_weights)
+                    f"""
+                    INSERT INTO {self._table} (id, doc_id, chunk_index, ticker, year, content, embedding, sparse_weights)
                     VALUES %s
                     ON CONFLICT (id) DO UPDATE SET
                         content        = EXCLUDED.content,
@@ -291,10 +291,9 @@ class VectorStore:
                 )
             self._conn.commit()
 
-        # 批量写入后更新统计信息，加速后续查询（VACUUM 不能在事务块内执行）
         self._conn.autocommit = True
         with self._conn.cursor() as cur:
-            cur.execute("VACUUM ANALYZE chunks")
+            cur.execute(f"VACUUM ANALYZE {self._table}")
         self._conn.autocommit = False
 
     def add_documents_with_embeddings(
@@ -345,8 +344,8 @@ class VectorStore:
         with self._conn.cursor() as cur:
             psycopg2.extras.execute_values(
                 cur,
-                """
-                INSERT INTO chunks (id, doc_id, chunk_index, ticker, year, content, embedding, sparse_weights)
+                f"""
+                INSERT INTO {self._table} (id, doc_id, chunk_index, ticker, year, content, embedding, sparse_weights)
                 VALUES %s
                 ON CONFLICT (id) DO UPDATE SET
                     content   = EXCLUDED.content,
@@ -359,7 +358,7 @@ class VectorStore:
 
         self._conn.autocommit = True
         with self._conn.cursor() as cur:
-            cur.execute("VACUUM ANALYZE chunks")
+            cur.execute(f"VACUUM ANALYZE {self._table}")
         self._conn.autocommit = False
 
     def search(self, query: str, top_k: int = 5, where: dict = None) -> list[dict]:
@@ -386,7 +385,7 @@ class VectorStore:
         sql = f"""
             SELECT id, doc_id, chunk_index, content,
                    1 - (embedding <=> %s::vector) AS score
-            FROM chunks
+            FROM {self._table}
             {sql_where}
             ORDER BY embedding <=> %s::vector
             LIMIT %s
@@ -403,58 +402,17 @@ class VectorStore:
             for row in rows
         ]
 
-    def search_with_sparse(self, query: str, top_k: int = 5) -> list[dict]:
-        """
-        Dense + sparse 混合检索，m3_hybrid 模式使用此方法。
-        先用 dense 召回 top_k * 4 候选，再用 sparse 重新打分融合。
-        """
-        if not _store_sparse:
-            raise RuntimeError("Sparse storage is disabled in config.")
-        if self._model is None:
-            self._load_model()
-        self._ensure_conn()
-
-        embed_result = self._embed_query(query)
-        query_dense = embed_result["dense_vec"]
-        query_sparse = embed_result["sparse_weights"]
-        vec_param = json.dumps(query_dense)
-        candidate_k = top_k * 4
-
-        sql = """
-            SELECT id, doc_id, chunk_index, content,
-                   1 - (embedding <=> %s::vector) AS dense_score,
-                   sparse_weights
-            FROM chunks
-            ORDER BY embedding <=> %s::vector
-            LIMIT %s
-        """
-        with self._conn.cursor() as cur:
-            cur.execute(f"SET LOCAL hnsw.ef_search = {_HNSW_EF_SEARCH}")
-            cur.execute(sql, [vec_param, vec_param, candidate_k])
-            rows = cur.fetchall()
-
-        scored = []
-        for row in rows:
-            dense_score = float(row[4])
-            doc_sparse = row[5] or {}
-            sparse_score = self._sparse_score(query_sparse, doc_sparse)
-            final_score = _d_w * dense_score + _s_w * sparse_score
-            scored.append({
-                "text": row[3],
-                "doc_id": row[1],
-                "chunk_index": row[2],
-                "dense_score": dense_score,
-                "sparse_score": sparse_score,
-                "score": final_score,
-            })
-
-        scored.sort(key=lambda x: x["score"], reverse=True)
-        return scored[:top_k]
-
     def delete_by_doc_id(self, doc_id: str) -> None:
         self._ensure_conn()
         with self._conn.cursor() as cur:
-            cur.execute("DELETE FROM chunks WHERE doc_id = %s", (doc_id,))
+            cur.execute(f"DELETE FROM {self._table} WHERE doc_id = %s", (doc_id,))
+        self._conn.commit()
+
+    def clear_all(self) -> None:
+        """清空当前策略表的全部数据（保留表结构）。"""
+        self._ensure_conn()
+        with self._conn.cursor() as cur:
+            cur.execute(f"TRUNCATE TABLE {self._table}")
         self._conn.commit()
 
     def offload(self) -> None:

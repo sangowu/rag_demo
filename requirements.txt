@@ -9,6 +9,7 @@ langgraph
 langchain
 langchain-core
 langchain-openai
+langchain-google-genai
 
 # Retrieval
 psycopg2-binary

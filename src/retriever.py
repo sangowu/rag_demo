@@ -3,9 +3,7 @@ retriever.py
 ============
 Hybrid retriever: combines VectorStore, BM25Store, and Reranker into a unified search interface.
 
-Supports two modes (config.retriever.mode):
-  - custom    : dense (VectorStore) + sparse (BM25) alpha-weighted fusion → rerank
-  - m3_hybrid : BGE-M3 dense+sparse fusion (VectorStore.search_with_sparse) → rerank
+Retrieval: dense (VectorStore) + sparse (BM25) → RRF fusion → reranker
 
 Usage:
     from src.vector_store import VectorStore
@@ -23,10 +21,9 @@ from src.config import config
 from src.metadata_extractor import build_chroma_filter, extract_query_metadata
 
 _cfg = config.get("retriever", {})
-_MODE = _cfg.get("mode", "custom")
 _TOP_K = _cfg.get("top_k", 5)
-_CUSTOM_CFG = _cfg.get("custom", {})
-_M3_CFG = _cfg.get("m3_hybrid", {})
+_CANDIDATE_K = _cfg.get("candidate_k", 50)
+_RRF_K = _cfg.get("rrf_k", 60)
 
 
 class Retriever:
@@ -97,8 +94,6 @@ class Retriever:
             query_meta = extract_query_metadata(query, known_tickers)
             where = build_chroma_filter(query_meta)
 
-        if _MODE == "m3_hybrid":
-            return self._search_m3_hybrid(retrieval_query, k, original_query=query)
         return self._search_custom(retrieval_query, k, where=where, original_query=query)
 
     def _rrf_merge(self, result_lists: list[list[dict]], k: int = 60) -> list[dict]:
@@ -128,8 +123,8 @@ class Retriever:
         去重 key：doc_id + chunk_index
         rerank 使用 original_query（未改写的原始问题），保证语义对齐。
         """
-        candidate_k = _CUSTOM_CFG.get("candidate_k", 20)
-        rrf_k = _CUSTOM_CFG.get("rrf_k", 60)
+        candidate_k = _CANDIDATE_K
+        rrf_k = _RRF_K
 
         dense_results = self._vs.search(query, top_k=candidate_k, where=where)
         bm25_results = self._bm25.search(query, top_k=candidate_k)
@@ -147,19 +142,3 @@ class Retriever:
 
         return results
 
-    def _search_m3_hybrid(self, query: str, top_k: int, original_query: str = None) -> list[dict]:
-        """
-        m3_hybrid 模式：BGE-M3 dense+sparse 融合召回 → rerank。
-        """
-        dense_weight = _M3_CFG.get("dense_weight", 0.5)
-        sparse_weight = _M3_CFG.get("sparse_weight", 0.5)
-        candidate_k = _cfg.get("top_k", 20)
-        candidates = self._vs.search_with_sparse(
-            query,
-            top_k=candidate_k,
-            dense_weight=dense_weight,
-            sparse_weight=sparse_weight,
-        )
-        rerank_query = original_query if original_query is not None else query
-        return self._reranker.rerank(rerank_query, candidates, top_k=top_k)
-        

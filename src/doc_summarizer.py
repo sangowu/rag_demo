@@ -12,7 +12,6 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -22,22 +21,12 @@ _ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from src.config import config
+from src.llm_factory import get_llm
 
-_DOCS_DIR   = _ROOT / "data/finqa/docs"
-_llm_cfg    = config.get("llm", {})
-_is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
+_DOCS_DIR = _ROOT / "data/finqa/docs"
 
-_llm = ChatOpenAI(
-    model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "") or "local",
-    temperature=0.1,
-    max_tokens=128,
-    extra_body={"enable_thinking": False} if _is_modelscope else {},
-)
+_llm = get_llm(temperature=0.1, max_output_tokens=256)
 
 _SYSTEM = (
     "You are a financial document indexer. "

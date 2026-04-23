@@ -35,13 +35,13 @@ _ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from ragas import EvaluationDataset, RunConfig, SingleTurnSample, evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerRelevancy, ContextPrecision, Faithfulness
 
 from src.bm25_store import BM25Store
 from src.config import config
+from src.llm_factory import get_llm
 from src.query_rewriter import QueryRewriter
 from src.reranker import Reranker
 from src.retriever import Retriever
@@ -69,17 +69,7 @@ class _BGEEmbeddings:
         return result["dense_vecs"].tolist()
 
 
-_llm_cfg = config.get("llm", {})
-
-_is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
-_llm = ChatOpenAI(
-    model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "") or "local",
-    temperature=_llm_cfg.get("temperature", 0.1),
-    max_tokens=_llm_cfg.get("max_tokens", 1024),
-    extra_body={"enable_thinking": False} if _is_modelscope else {},
-)
+_llm = get_llm()
 
 _SYSTEM_PROMPT = (
     "You are a financial analyst assistant. "
@@ -97,11 +87,11 @@ def _generate_answer(question: str, contexts: list[str]) -> tuple[str, int, int]
     """
     human_prompt = _build_prompt(question, contexts)
     response = _llm.invoke([SystemMessage(_SYSTEM_PROMPT), HumanMessage(human_prompt)])
-    usage = response.response_metadata.get("token_usage", {})
+    usage = response.response_metadata.get("usage_metadata", {})
     return (
         response.content,
-        usage.get("prompt_tokens", 0),
-        usage.get("completion_tokens", 0),
+        usage.get("prompt_token_count", 0),
+        usage.get("candidates_token_count", 0),
     )
 
 
@@ -289,16 +279,7 @@ def run_eval(n: int, output_path: Path, tag: str = "default", n_retrieval: int =
     # ------------------------------------------------------------------
     dataset = EvaluationDataset(samples=ragas_samples)
 
-    _api_key = os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "") or "local"
-    _is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
-    _ragas_chat = ChatOpenAI(
-        model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-        base_url=_llm_cfg.get("base_url", "https://api-inference.modelscope.cn/v1"),
-        api_key=_api_key,
-        temperature=0,
-        max_tokens=4096,   # RAGAS faithfulness 输出较长，但受限于 ctx-size 16384
-        extra_body={"enable_thinking": False} if _is_modelscope else {},
-    )
+    _ragas_chat = get_llm(temperature=0, max_output_tokens=4096)
     ragas_llm = LangchainLLMWrapper(_ragas_chat)
     _vs_cfg = config.get("vector_store", {})
     emb_model = _vs_cfg.get("embedding_model_path") or _vs_cfg.get("embedding_model", "BAAI/bge-m3")

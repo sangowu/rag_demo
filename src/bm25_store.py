@@ -39,10 +39,9 @@ def _tokenize(text: str) -> list[str]:
 
 
 class BM25Store:
-    def __init__(self):
-        # BM25Okapi 索引对象，build 或 load 后赋值
+    def __init__(self, index_path: "str | Path | None" = None):
+        self._index_path = Path(index_path) if index_path else _INDEX_PATH
         self._bm25 = None
-        # 与索引对齐的原始 chunk 列表，用于还原检索结果的元数据
         self._chunks = None
 
     def build(self, chunks: list[dict], header_override: dict = None) -> None:
@@ -66,8 +65,8 @@ class BM25Store:
         tokenized_corpus = [_tokenize(_chunk_text(chunk)) for chunk in chunks]
         self._bm25 = BM25Okapi(tokenized_corpus)
         self._chunks = chunks
-        _INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(_INDEX_PATH, "wb") as f:
+        self._index_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._index_path, "wb") as f:
             pickle.dump({
                 "bm25": self._bm25,
                 "chunks": self._chunks
@@ -78,10 +77,10 @@ class BM25Store:
         加载已持久化的 BM25 索引。
         未建立索引时抛出明确错误。
         """
-        if not _INDEX_PATH.exists():
+        if not self._index_path.exists():
             raise FileNotFoundError("BM25 Path Doesn't exist!")
         
-        with open(_INDEX_PATH, "rb") as f:
+        with open(self._index_path, "rb") as f:
             db = pickle.load(f)
         self._bm25 = db.get("bm25")
         self._chunks = db.get("chunks")
@@ -129,7 +128,7 @@ class BM25Store:
         remaining = [c for c in self._chunks if c["doc_id"] != doc_id]
 
         if not remaining:
-            _INDEX_PATH.unlink(missing_ok=True)
+            self._index_path.unlink(missing_ok=True)
             self._bm25 = None
             self._chunks = None
         else:

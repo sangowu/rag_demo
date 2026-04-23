@@ -13,17 +13,11 @@ Usage:
     ok, reason = g.check_output(answer, chunks)
 """
 
-import os
 import re
 
-from langchain_openai import ChatOpenAI
-from src.config import config
-
-_llm_cfg = config.get("llm", {})
-_is_modelscope = "modelscope" in _llm_cfg.get("base_url", "")
+from src.llm_factory import get_llm
 
 _INPUT_PROMPT = """\
-/no_think
 Is the following query related to financial documents, company reports, \
 revenue, earnings, or business metrics? Reply with ONLY "yes" or "no".
 
@@ -32,15 +26,7 @@ Query: {query}"""
 
 class Guardrails:
     def __init__(self):
-        # 输入检查用轻量 LLM，max_tokens=4 足够输出 yes/no
-        self._llm = ChatOpenAI(
-            model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-            base_url=_llm_cfg.get("base_url", "http://localhost:8000/v1"),
-            api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
-            temperature=0.0,
-            max_tokens=16,
-            extra_body={"enable_thinking": False},  # 本地和 ModelScope 都禁用 thinking
-        )
+        self._llm = get_llm(temperature=0.0, max_output_tokens=16)
 
     def check_input(self, query: str) -> tuple[bool, str]:
         """
@@ -60,9 +46,7 @@ class Guardrails:
 
         try:
             result = self._llm.invoke(_INPUT_PROMPT.format(query=query))
-            # 去掉 Qwen3 thinking block（<think>...</think>），再找 yes/no
-            raw = re.sub(r"<think>.*?</think>", "", result.content, flags=re.DOTALL)
-            answer = raw.strip().lower()
+            answer = result.content.strip().lower()
             has_yes = "yes" in answer
             has_no  = "no"  in answer
             # 明确包含 no 且不含 yes → 拦截；其余情况放行（优先避免误拦截）

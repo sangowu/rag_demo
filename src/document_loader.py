@@ -114,6 +114,7 @@ class DocumentLoader:
                     pages.append(page_text)
 
         text = "\n\n".join(pages)
+        text = text.replace("\x00", "")  # strip NUL bytes that PostgreSQL rejects
 
         return {
             "text":        text,

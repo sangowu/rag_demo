@@ -2,11 +2,11 @@
 
 ## Goal
 
-Build an **Agentic RAG** system for structured financial documents (FinQA dataset), targeting B2B interview readiness.
+Build an **Agentic RAG** system for structured financial documents (FinQA + FinanceBench datasets), targeting B2B interview readiness.
 
 Primary objective: demonstrate the full AI Engineer stack — hybrid retrieval, LangGraph agentic loop, reflection, observability, evaluation.
 
-Evaluation dataset: **FinQA** (train + dev, ~7134 questions).
+Evaluation datasets: **FinQA** (train + dev, ~7134 questions) + **FinanceBench** (150 Q&A pairs, 72 PDFs).
 Key metrics: **RAGAS** (faithfulness, context_precision, answer_relevancy) + **LLM-as-Judge**.
 
 ## Tech Decisions
@@ -14,11 +14,11 @@ Key metrics: **RAGAS** (faithfulness, context_precision, answer_relevancy) + **L
 | Area | Choice |
 |------|--------|
 | Embedding | BAAI/bge-m3 |
-| Vector store | ChromaDB (cosine, persist to `data/chroma/`) |
+| Vector store | pgvector (PostgreSQL), per-strategy tables |
 | Sparse retrieval | rank-bm25 |
 | Reranker | BAAI/bge-reranker-v2-m3 |
 | Agent framework | LangGraph |
-| LLM | Qwen3-8B via ModelScope API |
+| LLM | Gemini (gemini-3.1-flash-lite-preview) via Google API |
 | Tracing | LangSmith |
 | Evaluation | RAGAS + LLM-as-Judge |
 | API | FastAPI + SSE streaming |
@@ -43,17 +43,19 @@ User Query
 
 ## Conventions
 
-- Source documents stored as Markdown under `data/finqa/docs/`
+- Source documents stored as Markdown under `data/finqa/docs/` and `data/financebench/docs/`
 - Each module in `src/` independently importable, no side effects at import
 - All scripts runnable from project root: `python src/xxx.py` or `python scripts/xxx.py`
 - Temp/inspection scripts prefixed with `_`
+- Chunking strategies use isolated resources: `chunks_{strategy}` table, `data/bm25_{strategy}.pkl`, `data/registry_{strategy}.json`
+- LLM access centralised via `src/llm_factory.py` — `get_llm()` returns Gemini client configured from `config/settings.yaml`
 
 ## Learning Progress
 
 ### Phase 1 — RAG Foundation
 - [x] Task 1: `src/data_loader.py` — FinQA → 2408 docs + 7134 eval records
 - [x] Task 2: `src/chunk_manager.py` — fixed/recursive/semantic 三策略，表格保护，LangChain splitters
-- [x] Task 3: `src/vector_store.py` — ChromaDB + BGE-M3，dense/sparse 双模式，CRUD
+- [x] Task 3: `src/vector_store.py` — pgvector + BGE-M3，per-strategy 独立表，embed_text/content 分离
 - [x] Task 4: `src/bm25_store.py` — BM25Okapi 索引，pkl 持久化，归一化分数，delete 重建
 - [x] Task 5: `src/reranker.py` — BGE cross-encoder，懒加载，normalize=True，top-k 重排
 - [x] Task 6: `src/retriever.py` — custom/m3_hybrid 双模式，alpha 融合，依赖注入
@@ -66,7 +68,7 @@ User Query
 
 ### Phase 3 — Production
 - [x] Task 11: `src/api/main.py` — FastAPI SSE 流式查询，/ingest 文档摄入
-- [x] Task 12: `src/ingestion_registry.py` — JSON 注册表，is_registered/register/list_all
+- [x] Task 12: `src/ingestion_registry.py` — JSON 注册表，is_registered/register/list_all，clear()
 - [x] Task 13: Multi-turn conversation — messages 历史，add_messages reducer，history 注入
 - [x] Task 14: Per-query metrics — latency_ms / prompt_tokens / completion_tokens / retry_count
 
@@ -82,3 +84,11 @@ User Query
 ### Phase 6 — Showcase
 - [x] Task 20: Streamlit UI
 - [x] Task 21: README + architecture diagram
+
+### Phase 7 — Chunking Strategy Experiments
+- [x] Task 22: `src/llm_factory.py` — 统一 Gemini 客户端工厂，替换全局 LLM（原 Qwen3-8B）
+- [x] Task 23: `src/contextual_chunker.py` — Contextual Retrieval（Anthropic 2024），Gemini 生成上下文前缀
+- [x] Task 24: `scripts/build_index.py` — 4 策略独立建索引（baseline/parent_child/contextual/summary），--datasets 多数据集支持
+- [x] Task 25: `scripts/eval_smoke.py` — recall@1/3/5 + MRR@1/3/5，--strategy/--datasets 参数，tqdm 进度条
+- [x] Task 26: `scripts/convert_financebench.py` — FinanceBench PDF → Markdown（pdfplumber），eval.jsonl 生成
+- [x] Task 27: 混合数据集支持 — FinQA + FinanceBench 联合评测，每数据集独立采样

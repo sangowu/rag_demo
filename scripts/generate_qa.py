@@ -32,9 +32,9 @@ _ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
 from src.config import config
+from src.llm_factory import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -48,20 +48,10 @@ NUM_STRATEGIES = 3
 STRATEGY_LABELS = ("narrative", "balanced", "numeric")
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
-_llm_cfg = config.get("llm", {})
 _llm_qa_cfg = config.get("llm_qa_gen", {})
-_llm = ChatOpenAI(
-    model=_llm_cfg.get("model", "Qwen/Qwen3-8B"),
-    base_url=_llm_cfg.get("base_url", "http://localhost:8001/v1"),
-    api_key=os.environ.get(_llm_cfg.get("api_key_env", "MODELSCOPE_API_KEY"), "local"),
+_llm = get_llm(
     temperature=_llm_qa_cfg.get("temperature", 0.7),
-    max_tokens=_llm_qa_cfg.get("max_tokens", 512),
-    extra_body={
-        "top_p": 0.8,
-        "top_k": 20,
-        "min_p": 0.0,
-        "chat_template_kwargs": {"enable_thinking": False},
-    },
+    max_output_tokens=_llm_qa_cfg.get("max_tokens", 512),
 )
 
 _DOCS_DIR = _ROOT / "data/finqa/docs"
