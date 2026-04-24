@@ -93,16 +93,14 @@ async def health():
       bm25_ready   : BM25 索引是否已加载
     """
     try:
-        chunk_count = _vs._collection.count()
-        bm25_ready  = _bm25._index is not None
+        bm25_ready = _bm25._bm25 is not None
     except Exception as e:
-        log.error("health check failed", error=str(e))
+        log.error("health check failed: %s", str(e))
         return JSONResponse(status_code=503, content={"status": "degraded", "error": str(e)})
 
     return {
-        "status":       "ok",
-        "vector_store": chunk_count,
-        "bm25_ready":   bm25_ready,
+        "status":     "ok",
+        "bm25_ready": bm25_ready,
     }
 
 # 摄入用单例（query 路径不需要直接访问这两个）

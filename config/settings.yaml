@@ -6,7 +6,7 @@ chunking:
   semantic_embed_batch_size: 8
 
 vector_store:
-  pg_dsn: "postgresql://rag:rag@localhost:5432/ragdb"
+  pg_dsn: "${PG_DSN}"
   embedding_model: "BAAI/bge-m3"
   embedding_model_path: "./models/BAAI/bge-m3"
   embedding_server_url: "http://localhost:6006"          # 填入后走远程 embedding server，留空则本地加载模型

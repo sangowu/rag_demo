@@ -1,0 +1,28 @@
+# Core
+fastapi[standard]
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# AWS
+boto3
+
+# LangGraph / LangChain
+langgraph
+langchain
+langchain-core
+langchain-google-genai
+
+# Retrieval
+psycopg2-binary
+pgvector
+rank-bm25
+
+# Config
+pyyaml
+typing-extensions
+tqdm
+httpx
+
+# API production
+slowapi

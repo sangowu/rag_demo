@@ -24,7 +24,14 @@ data/finqa/docs/
 data/financebench/
 data/chroma/
 data/bm25_index.pkl
+data/bm25_*.pkl
+data/registry_*.json
 data/ingestion_registry.json
+
+# AWS config files (contain ARNs, not secrets but repo-specific)
+trust-policy.json
+secrets-policy.json
+task-definition.json
 
 # Eval outputs (generated, not source)
 # data/eval_results.json
