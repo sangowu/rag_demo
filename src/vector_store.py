@@ -147,7 +147,7 @@ class VectorStore:
     def _remote_embed(self, texts: list[str], is_query: bool = False) -> list[list[float]]:
         import requests
         url = self._embedding_server_url().rstrip("/") + "/embed"
-        resp = requests.post(url, json={"inputs": texts, "is_query": is_query}, timeout=120)
+        resp = requests.post(url, json={"texts": texts}, timeout=120)
         resp.raise_for_status()
         return resp.json()["embeddings"]
 

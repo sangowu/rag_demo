@@ -69,7 +69,7 @@ class LateChunkingEmbedder:
     def _remote_embed(self, texts: list[str]) -> list[list[float]]:
         import requests
         url = self._embedding_server_url().rstrip("/") + "/embed"
-        resp = requests.post(url, json={"inputs": texts, "is_query": False}, timeout=120)
+        resp = requests.post(url, json={"texts": texts}, timeout=120)
         resp.raise_for_status()
         return resp.json()["embeddings"]
 
