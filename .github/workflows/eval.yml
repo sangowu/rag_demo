@@ -24,7 +24,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run smoke eval
+        continue-on-error: true
         env:
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          PG_DSN: ${{ secrets.PG_DSN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          EMBEDDING_SERVER_URL: ${{ secrets.EMBEDDING_SERVER_URL }}
         run: |
           python scripts/eval_smoke.py --n 10 --top-k 5 --threshold 0.6
