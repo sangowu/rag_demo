@@ -18,6 +18,7 @@ Usage:
 """
 
 import logging
+import os
 import time
 from collections import OrderedDict
 
@@ -64,12 +65,15 @@ class Reranker:
         self._model = None
         self._cache = _LRUCache(maxsize=_CACHE_SIZE)
 
+    def _embedding_server_url(self) -> str:
+        return os.environ.get("EMBEDDING_SERVER_URL", "") or _vs_cfg.get("embedding_server_url", "")
+
     def _use_remote(self) -> bool:
-        return bool(_vs_cfg.get("embedding_server_url", "").strip())
+        return bool(self._embedding_server_url().strip())
 
     def _remote_rerank(self, query: str, texts: list[str]) -> list[float]:
         import requests
-        url = _vs_cfg["embedding_server_url"].rstrip("/") + "/rerank"
+        url = self._embedding_server_url().rstrip("/") + "/rerank"
         resp = requests.post(url, json={"query": query, "texts": texts}, timeout=120)
         resp.raise_for_status()
         return resp.json()["scores"]

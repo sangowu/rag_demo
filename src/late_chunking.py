@@ -59,12 +59,16 @@ class LateChunkingEmbedder:
         if torch.cuda.is_available():
             self._model.cuda()
 
+    def _embedding_server_url(self) -> str:
+        import os
+        return os.environ.get("EMBEDDING_SERVER_URL", "") or _vs_cfg.get("embedding_server_url", "")
+
     def _use_remote(self) -> bool:
-        return bool(_vs_cfg.get("embedding_server_url", "").strip())
+        return bool(self._embedding_server_url().strip())
 
     def _remote_embed(self, texts: list[str]) -> list[list[float]]:
         import requests
-        url = _vs_cfg["embedding_server_url"].rstrip("/") + "/embed"
+        url = self._embedding_server_url().rstrip("/") + "/embed"
         resp = requests.post(url, json={"inputs": texts, "is_query": False}, timeout=120)
         resp.raise_for_status()
         return resp.json()["embeddings"]
