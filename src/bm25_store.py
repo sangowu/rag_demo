@@ -16,6 +16,7 @@ Usage:
     results = store.search("What was ADI revenue in 2009?", top_k=5)
 """
 
+import os
 import pickle
 import re
 import numpy as np
@@ -71,19 +72,39 @@ class BM25Store:
                 "bm25": self._bm25,
                 "chunks": self._chunks
             }, f)
+        s3_bucket = os.environ.get("S3_BUCKET")
+        if s3_bucket:
+            self._upload_to_s3(s3_bucket)
+
+    def _upload_to_s3(self, bucket: str) -> None:
+        import boto3
+        s3 = boto3.client("s3")
+        s3_key = f"bm25/{self._index_path.name}"
+        s3.upload_file(str(self._index_path), bucket, s3_key)
 
     def load(self) -> None:
         """
-        加载已持久化的 BM25 索引。
-        未建立索引时抛出明确错误。
+        加载 BM25 索引：优先从 S3 下载，本地作为缓存。
+        S3_BUCKET 环境变量未设置时退回本地文件。
         """
         if not self._index_path.exists():
-            raise FileNotFoundError("BM25 Path Doesn't exist!")
-        
+            s3_bucket = os.environ.get("S3_BUCKET")
+            if s3_bucket:
+                self._download_from_s3(s3_bucket)
+            else:
+                raise FileNotFoundError("BM25 index not found locally and S3_BUCKET not set")
+
         with open(self._index_path, "rb") as f:
             db = pickle.load(f)
         self._bm25 = db.get("bm25")
         self._chunks = db.get("chunks")
+
+    def _download_from_s3(self, bucket: str) -> None:
+        import boto3
+        s3 = boto3.client("s3")
+        s3_key = f"bm25/{self._index_path.name}"
+        self._index_path.parent.mkdir(parents=True, exist_ok=True)
+        s3.download_file(bucket, s3_key, str(self._index_path))
 
 
     def search(self, query: str, top_k: int = 5) -> list[dict]:
