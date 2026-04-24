@@ -225,7 +225,7 @@ class VectorStore:
             chunks          : list of dicts with keys text, doc_id, chunk_index
             header_override : 若提供，所有 chunk 使用此 header（用于通用来源文档）
         """
-        if self._model is None:
+        if not self._use_remote() and self._model is None:
             self._load_model()
 
         self._ensure_conn()
@@ -376,7 +376,7 @@ class VectorStore:
         Returns:
             list of dicts: text, doc_id, chunk_index, score
         """
-        if self._model is None:
+        if not self._use_remote() and self._model is None:
             self._load_model()
         self._ensure_conn()
 
