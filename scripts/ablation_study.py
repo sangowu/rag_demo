@@ -243,10 +243,9 @@ def main():
         all_results[label] = metrics
 
         print(
-            f"  Hit@5={metrics['hit@5']:.3f}  "
-            f"MRR@5={metrics['mrr@5']:.4f}  "
-            f"ChunkPrec@5={metrics['chunk_prec@5']:.3f}  "
-            f"Latency={metrics['avg_latency_ms']:.0f}ms\n"
+            f"  Hit@1={metrics['hit@1']:.3f}  Hit@3={metrics['hit@3']:.3f}  Hit@5={metrics['hit@5']:.3f}  "
+            f"MRR@1={metrics['mrr@1']:.4f}  MRR@3={metrics['mrr@3']:.4f}  MRR@5={metrics['mrr@5']:.4f}  "
+            f"ChunkPrec@5={metrics['chunk_prec@5']:.3f}  Latency={metrics['avg_latency_ms']:.0f}ms\n"
         )
 
         # Config 切换前释放 GPU 显存（embedding server 模式下为空操作）
@@ -254,17 +253,20 @@ def main():
             retriever._vs.offload()
 
     # ── 汇总对比表 ───────────────────────────────────────────────────────
-    header = f"{'Configuration':<22} {'Hit@1':>6} {'Hit@3':>6} {'Hit@5':>6} {'MRR@5':>7} {'CPrec@5':>8} {'ms/q':>6}"
+    header = (
+        f"{'Configuration':<22} "
+        f"{'Hit@1':>6} {'Hit@3':>6} {'Hit@5':>6} "
+        f"{'MRR@1':>7} {'MRR@3':>7} {'MRR@5':>7} "
+        f"{'CPrec@5':>8} {'ms/q':>6}"
+    )
     print(f"\n{'─'*len(header)}")
     print(header)
     print(f"{'─'*len(header)}")
     for label, m in all_results.items():
         print(
             f"{label:<22} "
-            f"{m['hit@1']:>6.3f} "
-            f"{m['hit@3']:>6.3f} "
-            f"{m['hit@5']:>6.3f} "
-            f"{m['mrr@5']:>7.4f} "
+            f"{m['hit@1']:>6.3f} {m['hit@3']:>6.3f} {m['hit@5']:>6.3f} "
+            f"{m['mrr@1']:>7.4f} {m['mrr@3']:>7.4f} {m['mrr@5']:>7.4f} "
             f"{m['chunk_prec@5']:>8.3f} "
             f"{m['avg_latency_ms']:>6.0f}"
         )
