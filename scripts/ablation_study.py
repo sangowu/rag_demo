@@ -193,14 +193,14 @@ def main():
 
         if cfg_id == 1:
             retriever = Retriever(
-                VectorStore(),
+                VectorStore(table_name="chunks_baseline"),
                 _NullBM25(),
                 _PassThroughReranker(),
             )
 
         elif cfg_id == 2:
             retriever = Retriever(
-                VectorStore(),
+                VectorStore(table_name="chunks_baseline"),
                 BM25Store(),
                 _PassThroughReranker(),
             )
@@ -208,7 +208,7 @@ def main():
         elif cfg_id == 3:
             shared_reranker = shared_reranker or Reranker()
             retriever = Retriever(
-                VectorStore(),
+                VectorStore(table_name="chunks_baseline"),
                 BM25Store(),
                 shared_reranker,
             )
@@ -216,7 +216,7 @@ def main():
         elif cfg_id == 4:
             shared_reranker = shared_reranker or Reranker()
             retriever = Retriever(
-                VectorStore(),
+                VectorStore(table_name="chunks_baseline"),
                 BM25Store(),
                 shared_reranker,
                 query_rewriter=QueryRewriter(),
