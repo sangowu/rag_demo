@@ -64,8 +64,10 @@
 - [x] **EC2 g4dn.xlarge**
   - Tesla T4 / CUDA 13.0 / Ubuntu 24.04
   - BGE-M3 embedding server + BGE-reranker 已部署（port 8000）
+  - systemd 开机自启（`/etc/systemd/system/embedding-server.service`）
   - 24小时无请求自动关机（IDLE_TIMEOUT=86400）
   - ECS 通过 EMBEDDING_SERVER_URL 环境变量连接（私有 IP 172.31.30.33）
+  - 本地通过 `scripts/run_ec2.ps1` 一键唤醒 + 运行脚本 + 自动关机
 
 - [ ] **ElastiCache Redis**
   - 替换 in-memory SemanticCache

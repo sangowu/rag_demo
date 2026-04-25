@@ -6,8 +6,8 @@ Build an **Agentic RAG** system for structured financial documents (FinQA + Fina
 
 Primary objective: demonstrate the full AI Engineer stack — hybrid retrieval, LangGraph agentic loop, reflection, observability, evaluation.
 
-Evaluation datasets: **FinQA** (train + dev, ~7134 questions) + **FinanceBench** (150 Q&A pairs, 72 PDFs).
-Key metrics: **RAGAS** (faithfulness, context_precision, answer_relevancy) + **LLM-as-Judge**.
+Evaluation datasets: **FinQA** (train + dev, ~7134 questions) + **FinanceBench** (150 Q&A pairs, 72 PDFs) + **LegalBench-RAG-mini**（计划中，72 legal docs, 776 queries）.
+Key metrics: **RAGAS** (faithfulness, context_precision, answer_relevancy) + **LLM-as-Judge** + **chunk-level precision**（gold_inds）.
 
 ## Tech Decisions
 
@@ -23,7 +23,20 @@ Key metrics: **RAGAS** (faithfulness, context_precision, answer_relevancy) + **L
 | Evaluation | RAGAS + LLM-as-Judge |
 | API | FastAPI + SSE streaming |
 | Frontend | Streamlit |
-| GPU | RTX 4090D, 24 GB VRAM |
+| GPU | EC2 Tesla T4 (AWS g4dn.xlarge, eu-west-1) — embedding server |
+| Embedding Server | FastAPI on EC2:8000，systemd 开机自启，BGE-M3 + BGE-reranker |
+| Local Dev GPU | RTX 4090D, 24 GB VRAM |
+
+## AWS Infrastructure
+
+| Resource | Details |
+|----------|---------|
+| EC2 | `rag-embedding-server`，g4dn.xlarge，Tesla T4，eu-west-1 |
+| RDS | `rag-database-1`，db.t3.micro，pgvector，eu-west-1 |
+| S3 | `rag-documents-sango`，BM25 索引存储 |
+| ECS | `rag-demo-cluster` / `rag-demo-service`，Fargate，1vCPU/2GB |
+| ECR | `rag-demo`，`569260897196.dkr.ecr.eu-west-1.amazonaws.com/rag-demo` |
+| Secrets | `rag-demo/pg-dsn`，`rag-demo/google-api-key` |
 
 ## Architecture
 
@@ -92,3 +105,20 @@ User Query
 - [x] Task 25: `scripts/eval_smoke.py` — recall@1/3/5 + MRR@1/3/5，--strategy/--datasets 参数，tqdm 进度条
 - [x] Task 26: `scripts/convert_financebench.py` — FinanceBench PDF → Markdown（pdfplumber），eval.jsonl 生成
 - [x] Task 27: 混合数据集支持 — FinQA + FinanceBench 联合评测，每数据集独立采样
+
+### Phase 8 — Ablation Study
+- [x] Task 28: `scripts/ablation_study.py` — 5 配置消融实验，doc-level Hit@K/MRR + chunk-level ChunkPrec@5（gold_inds），seed=42 可复现，支持 --configs 单独运行
+- [x] Task 29: `scripts/generate_ablation_chart.py` — 消融结果可视化，三指标分组柱状图，输出 ablation_chart.png
+- [ ] Task 30: LegalBench-RAG-mini 接入 — 72 legal docs / 776 queries，char-level GT 匹配，跨域泛化验证
+
+## Ablation Study 配置说明
+
+| Config | 组件 | 关键参数 |
+|--------|------|---------|
+| 1 Dense only | BGE-M3 dense | NullBM25 + PassThroughReranker |
+| 2 + BM25 hybrid | Dense + BM25 RRF | PassThroughReranker |
+| 3 + Reranker | Dense + BM25 + BGE reranker | 完整 pipeline |
+| 4 + Query Rewriter | Config 3 + LLM ticker 展开 | rewrite=True |
+| 5 + Header Inject | Config 4 + contextual 索引 | chunks_contextual 表 |
+
+评测集：FinQA eval.jsonl，n=200，seed=42
