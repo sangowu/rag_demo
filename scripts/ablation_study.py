@@ -165,8 +165,12 @@ def main():
         all_records = [json.loads(line) for line in f if line.strip()]
 
     random.seed(args.seed)
-    samples = random.sample(all_records, min(args.n, len(all_records)))
-    print(f"\nLoaded {len(samples)} samples (seed={args.seed})\n")
+    # 只保留 doc_id 已在 chunks_baseline 索引里的 query，确保评测公平
+    indexed_ids = VectorStore(table_name="chunks_baseline").get_indexed_ids()
+    indexed_doc_ids = {row.rsplit("_", 1)[0] for row in indexed_ids}
+    eligible = [r for r in all_records if r.get("doc_id", "") in indexed_doc_ids]
+    samples = random.sample(eligible, min(args.n, len(eligible)))
+    print(f"\nLoaded {len(samples)} samples from {len(eligible)} eligible (seed={args.seed})\n")
 
     # ── 配置定义 ─────────────────────────────────────────────────────────
     # (label, use_rewrite)
