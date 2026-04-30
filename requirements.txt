@@ -21,6 +21,7 @@ gradio
 
 # Config
 pyyaml
+python-dotenv
 typing-extensions
 tqdm
 ragas
@@ -30,5 +31,11 @@ slowapi
 
 # MCP Server
 fastmcp
+
+# Web Search
+tavily-python
+
+# Observability
+langfuse>=2,<3
 
 

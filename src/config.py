@@ -16,6 +16,13 @@ import yaml
 _ROOT = Path(__file__).parent.parent
 _CONFIG_PATH = _ROOT / "config" / "settings.yaml"
 
+# 加载 .env（存在时）— 不覆盖已有的 shell 环境变量
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_ROOT / ".env", override=False)
+except ImportError:
+    pass
+
 
 def _load() -> dict:
     with open(_CONFIG_PATH, encoding="utf-8") as f:

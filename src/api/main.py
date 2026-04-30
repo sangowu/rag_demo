@@ -37,6 +37,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from src.agent.graph import graph
+from src.tracing import record_agent_trace
 from src.bm25_store import BM25Store
 from src.chunk_manager import ChunkManager
 from src.doc_metadata_extractor import build_chunk_header, extract_doc_metadata_llm
@@ -188,8 +189,10 @@ async def query_endpoint(request: Request, req: QueryRequest):
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
             }
+            run_name = f"rag_query:{req.query[:40]}"
             for chunk in graph.stream(
                 initial_state,
+                config={"callbacks": get_callbacks(), "run_name": run_name},
                 stream_mode=["updates", "messages"],
             ):
                 mode, data = chunk
@@ -207,6 +210,7 @@ async def query_endpoint(request: Request, req: QueryRequest):
                         answer = node_data.get("final_answer", "")
                         chunks = node_data.get("retrieved_chunks", [])
                         grounded, grounding_warning = _guardrails.check_output(answer, chunks)
+                        record_agent_trace(req.query, node_data, run_name=f"api:{req.query[:40]}")
                         yield _sse(
                             "done",
                             answer=answer,

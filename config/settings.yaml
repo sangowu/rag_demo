@@ -40,6 +40,7 @@ reranker:
 
 agent:
   max_retries: 2                   # Reflector 最大重试次数
+  grounding_threshold: 0.1         # Reranker score 低于此值视为证据不足，触发拒答
 
 semantic_cache:
   threshold: 0.92                  # 余弦相似度阈值，超过则命中缓存
@@ -47,5 +48,19 @@ semantic_cache:
 
 guardrails:
   enabled: true                    # 是否启用输入/输出校验
+
+web_search:
+  # 申请免费 key：https://app.tavily.com
+  # 配置方式：export TAVILY_API_KEY="tvly-xxxx"
+  top_k: 3
+
+langfuse:
+  # 申请免费账号：https://cloud.langfuse.com
+  # 配置方式：
+  #   export LANGFUSE_PUBLIC_KEY="pk-lf-xxxx"
+  #   export LANGFUSE_SECRET_KEY="sk-lf-xxxx"
+  #   export LANGFUSE_HOST="https://cloud.langfuse.com"  # 可选，默认即此值
+  # 未设置时自动禁用，不影响正常运行
+  enabled: true
 
 

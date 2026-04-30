@@ -1,0 +1,56 @@
+{
+  "n": 200,
+  "seed": 42,
+  "results": {
+    "Dense only": {
+      "hit@1": 0.305,
+      "mrr@1": 0.305,
+      "hit@3": 0.465,
+      "mrr@3": 0.3733,
+      "hit@5": 0.545,
+      "mrr@5": 0.3916,
+      "chunk_prec@5": 0.35,
+      "avg_latency_ms": 310.2
+    },
+    "+ BM25 hybrid": {
+      "hit@1": 0.27,
+      "mrr@1": 0.27,
+      "hit@3": 0.425,
+      "mrr@3": 0.3358,
+      "hit@5": 0.515,
+      "mrr@5": 0.3566,
+      "chunk_prec@5": 0.37,
+      "avg_latency_ms": 461.0
+    },
+    "+ Reranker": {
+      "hit@1": 0.31,
+      "mrr@1": 0.31,
+      "hit@3": 0.49,
+      "mrr@3": 0.3867,
+      "hit@5": 0.58,
+      "mrr@5": 0.4079,
+      "chunk_prec@5": 0.39,
+      "avg_latency_ms": 2670.6
+    },
+    "+ Query Rewriter": {
+      "hit@1": 0.31,
+      "mrr@1": 0.31,
+      "hit@3": 0.49,
+      "mrr@3": 0.3867,
+      "hit@5": 0.58,
+      "mrr@5": 0.4079,
+      "chunk_prec@5": 0.39,
+      "avg_latency_ms": 3528.5
+    },
+    "+ Header Inject": {
+      "hit@1": 0.325,
+      "mrr@1": 0.325,
+      "hit@3": 0.485,
+      "mrr@3": 0.3917,
+      "hit@5": 0.575,
+      "mrr@5": 0.4134,
+      "chunk_prec@5": 0.41,
+      "avg_latency_ms": 3554.1
+    }
+  }
+}

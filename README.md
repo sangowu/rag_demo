@@ -4,57 +4,46 @@ An end-to-end **Agentic RAG** system for structured financial documents, built t
 
 ## Evaluation Results
 
-### FinQA (In-Domain)
+### Retrieval Ablation — FinQA (n=200, seed=42, fixed-512 chunks)
 
-Best configuration: `fixed chunking / chunk_size=512 / alpha=0.7 / candidate_k=40 / ticker-year header injection`
+Best configuration: `Dense (BGE-M3) + BM25 RRF + BGE-reranker-v2-m3, candidate_k=50`
 
-| Metric | Score |
-|--------|-------|
-| Hit@1 | 0.814 |
-| Hit@3 | 0.940 |
-| Hit@5 | **0.967** |
-| MRR@5 | 0.878 |
-| Faithfulness | **1.000** |
-| Context Precision | 0.833 |
-| Answer Relevancy | 0.890 |
+| Config | Hit@1 | Hit@3 | Hit@5 | MRR@5 | ChunkPrec@5 | Latency |
+|--------|-------|-------|-------|-------|-------------|---------|
+| Dense only | 0.395 | 0.540 | 0.660 | 0.483 | 0.610 | 288ms |
+| + BM25 hybrid | 0.285 | 0.470 | 0.560 | 0.386 | 0.445 | 252ms |
+| **+ Reranker** ✓ | **0.475** | **0.680** | **0.740** | **0.574** | **0.685** | 2466ms |
+| Dense + Reranker (no BM25) | 0.455 | 0.665 | 0.720 | 0.554 | 0.680 | 1399ms |
 
-Evaluated on 200 QA pairs (retrieval) + 50 samples (RAGAS), using FinQA eval.jsonl.
+Key findings:
+- BM25 alone hurts FinQA (financial terms are sparse; RRF introduces noise)
+- Reranker recovers and improves by leveraging BM25 candidates as extra pool
+- Increasing candidate_k 50→100 gives +1% Hit@5 at 2× latency cost — not worth it
 
-### FinanceBench (Cross-Domain Generalization)
+### Retrieval Ablation — LegalBench-RAG-mini (n=200, seed=42, fixed-1024 chunks)
 
-Evaluated on [PatronusAI/financebench](https://huggingface.co/datasets/PatronusAI/financebench): 150 QA pairs across 84 financial documents (10-K/10-Q, 2022–2023).
-Index built from official `evidence_text_full_page` annotations. No fine-tuning or domain adaptation.
+| Config | Hit@1 | Hit@5 | ChunkPrec@5 | Latency |
+|--------|-------|-------|-------------|---------|
+| Dense only | 0.285 | 0.565 | 0.565 | 301ms |
+| **+ BM25 hybrid** ✓ | **0.300** | **0.575** | **0.575** | 498ms |
+| + Reranker | 0.255 | 0.535 | 0.535 | 2655ms |
 
-| Metric | Score |
-|--------|-------|
-| Hit@1 | 0.627 |
-| Hit@3 | 0.833 |
-| Hit@5 | **0.907** |
-| MRR@5 | 0.738 |
-| Faithfulness | 0.733 |
-| Context Precision | 0.409 |
+BM25 helps on legal text (exact keyword matching); Reranker hurts (BGE has financial bias).
 
-**Cross-domain Hit@5 drop: 0.967 → 0.907 (−6%)**, demonstrating strong out-of-distribution generalization with zero adaptation.
+### End-to-End Agent Evaluation — FinQA (n=50, seed=42)
 
-### Mixed Evaluation — Parameter Sweep (FinQA + FinanceBench)
+Full agent pipeline: Planner → Tool → Generator → Reflector → Final
 
-Stratified mixed evaluation: 150 FinQA + 150 FinanceBench questions (n=50 RAGAS, n_retrieval=300), evaluated against the combined retrieval pool (hard negatives from both corpora).
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Judge Score | **4.91 / 5.0** | Gemini LLM-as-Judge, semantic quality |
+| Judge Pass Rate (≥4) | **97.6%** | Over answered queries |
+| Refuse Rate | **16%** | grounding_score < 0.1 → structured refusal |
+| Avg Latency | **2.5s / query** | Includes retrieval + reranking + LLM generation |
 
-![Evaluation Results](docs/eval_results.png)
+FinQA requires multi-step numerical reasoning; Exact Match is not a meaningful metric (gold answers are program-computed values like `0.5323` vs LLM's `"53.23%"`). LLM-as-Judge is the primary quality signal.
 
-| Config | chunk | alpha | Hit@1 | Hit@3 | Hit@5 | MRR@5 | Faithfulness | CtxPrec | AnsRel |
-|--------|-------|-------|-------|-------|-------|-------|-------------|---------|--------|
-| fixed-512, α=0.7 | fixed/512 | 0.7 | 0.543 | 0.733 | 0.813 | 0.647 | 0.790 | 0.285 | 0.358 |
-| fixed-1024, α=0.7 | fixed/1024 | 0.7 | 0.530 | 0.733 | 0.800 | 0.636 | 0.797 | 0.386 | 0.399 |
-| recur-1024, α=0.7 | recur/1024 | 0.7 | 0.537 | 0.737 | 0.807 | 0.642 | 0.810 | 0.455 | 0.518 |
-| sem-1024, α=0.7 | sem/1024 | 0.7 | 0.513 | 0.730 | 0.790 | 0.624 | 0.815 | 0.337 | 0.416 |
-| **fixed-1024, α=0.4** ✓ | fixed/1024 | 0.4 | 0.533 | 0.720 | 0.793 | 0.634 | **0.876** | 0.435 | 0.436 |
-| recur-1024, α=0.4 | recur/1024 | 0.4 | 0.530 | 0.720 | 0.797 | 0.634 | 0.817 | **0.560** | 0.384 |
-| recur-1024, α=0.3 | recur/1024 | 0.3 | 0.517 | 0.740 | **0.823** | 0.636 | 0.767 | 0.427 | 0.442 |
-
-**Best overall: `fixed/1024 + α=0.4`** — highest Faithfulness (0.876), balanced Hit@5/MRR@5. Lower alpha shifts weight toward BM25, which improves keyword matching for financial tickers and metrics but can reduce answer grounding quality.
-
-Mixed evaluation uses a harder retrieval setup — all documents from both datasets remain in the retrieval pool, making Hit@K metrics more conservative than single-dataset runs.
+**Grounding check**: queries with max reranker score < 0.1 receive a structured refusal with score and threshold, rather than a hallucinated answer. Verified on out-of-domain queries (e.g. real-time stock prices → refused; financial document questions → answered).
 
 ## Architecture
 
@@ -65,38 +54,48 @@ User Query
     ↓
 [FastAPI /query]  ── SSE streaming ──→  [HTML/JS Demo UI]
     ↓
-[Guardrails]      — block non-financial queries; check answer grounding
-    ↓
 [Semantic Cache]  — return cached result if cosine similarity > 0.92
     ↓
 [LangGraph Agent]
-    ├─ Planner Node    — decide whether to retrieve + whether to rewrite query
-    ├─ Tool Node       — search_internal (hybrid retrieval + optional query rewriting)
-    ├─ Generator Node  — produce answer with inline citations
-    ├─ Reflector Node  — self-evaluate quality; retry ≤ 2 times
-    └─ Final Node      — format output + source attribution
+    ├─ Planner Node      — structured output: should_retrieve / should_rewrite
+    │       ↓ (conditional routing)
+    ├─ Tool Node         — hybrid retrieval; computes grounding_score (max reranker score)
+    │       ├─ grounding ok (≥ 0.1)  → Generator Node
+    │       └─ grounding weak (< 0.1)
+    │               ├─ TAVILY_API_KEY set → Web Search Node → Generator Node
+    │               └─ no Tavily key    → Refuse Node → Final Node
+    ├─ Generator Node    — produce answer with inline citations
+    ├─ Reflector Node    — self-evaluate quality; retry ≤ 2 times
+    │                      (skipped after web search or knowledge-only answers)
+    └─ Final Node        — format output; deduplicate sources by retrieval type
          ↓
 [Hybrid Retriever]
-    ├─ QueryRewriter   — expand ticker symbols to full company names (ADI → Analog Devices)
-    ├─ VectorStore     — ChromaDB + BGE-M3 dense vectors
-    ├─ BM25Store       — rank-bm25 sparse index
-    └─ Reranker        — BGE-reranker-v2-m3 cross-encoder (uses original query)
+    ├─ VectorStore     — pgvector + BGE-M3 dense vectors (fixed-512 chunks)
+    ├─ BM25Store       — rank-bm25 sparse index, RRF fusion (candidate_k=50)
+    └─ Reranker        — BGE-reranker-v2-m3 cross-encoder
 ```
+
+**Routing logic:**
+- `should_retrieve=False` → skip Tool Node, generate from LLM knowledge directly
+- `grounding_score < 0.1` + Tavily available → web search fallback, then generate
+- `grounding_score < 0.1` + no Tavily → structured refusal with score and threshold
+- Reflector retry only fires when `should_retrieve=True` and no web search was used
 
 ## Tech Stack
 
 | Area | Choice |
 |------|--------|
 | Embedding | BAAI/bge-m3 |
-| Vector store | ChromaDB (cosine, persistent) |
-| Sparse retrieval | rank-bm25 |
+| Vector store | pgvector (PostgreSQL), per-strategy tables |
+| Sparse retrieval | rank-bm25, RRF fusion |
 | Reranker | BAAI/bge-reranker-v2-m3 |
 | Agent framework | LangGraph |
-| LLM | Qwen3-8B (local via llama.cpp or ModelScope API) |
-| Tracing | LangSmith |
-| Evaluation | RAGAS + LLM-as-Judge + Hit@K/MRR |
+| LLM | Gemini (gemini-3.1-flash-lite-preview) via Google API |
+| Web Search | Tavily (fallback when local grounding < 0.1) |
+| Tracing | Langfuse + LangSmith |
+| Evaluation | Hit@K / MRR / ChunkPrec + LLM-as-Judge |
 | API | FastAPI + SSE streaming |
-| Frontend | HTML/JS (served from FastAPI) |
+| Frontend | Gradio |
 
 ## Project Structure
 
@@ -131,11 +130,12 @@ rag_demo/
 │   ├── ingestion_registry.py      # Document ingestion tracker
 │   ├── evaluator.py               # RAGAS + Hit@K/MRR batch evaluation
 │   ├── llm_judge.py               # LLM-as-Judge per-query scoring
+│   ├── tracing.py                 # Langfuse callback singleton (atexit flush)
 │   ├── agent/
 │   │   ├── state.py               # LangGraph AgentState
-│   │   ├── tools.py               # search_internal tool
-│   │   ├── nodes.py               # 5 agent nodes + PlannerDecision structured output
-│   │   └── graph.py               # LangGraph StateGraph
+│   │   ├── tools.py               # search_local / rewrite_query / search_web
+│   │   ├── nodes.py               # 6 agent nodes + PlannerDecision structured output
+│   │   └── graph.py               # LangGraph StateGraph with web search routing
 │   └── api/
 │       ├── main.py                # FastAPI SSE endpoints + async ingestion
 │       └── static/
@@ -162,33 +162,26 @@ pip install -r requirements.txt
 ### 2. Set environment variables
 
 ```bash
-# ModelScope API (for cloud LLM)
-export MODELSCOPE_API_KEY=your_api_key_here
+# Required
+export GOOGLE_API_KEY=your_gemini_key          # Gemini LLM
+export PG_DSN=postgresql://user:pass@host/db   # pgvector database
 
-# LangSmith tracing (configured — view traces at smith.langchain.com)
+# Optional — web search fallback (free tier: https://app.tavily.com)
+export TAVILY_API_KEY=tvly-xxxx
+
+# Optional — observability (free tier: https://cloud.langfuse.com)
+export LANGFUSE_PUBLIC_KEY=pk-lf-xxxx
+export LANGFUSE_SECRET_KEY=sk-lf-xxxx
+
+# Optional — LangSmith tracing
 export LANGCHAIN_TRACING_V2=true
 export LANGCHAIN_API_KEY=your_langsmith_key
 export LANGCHAIN_PROJECT=rag-demo
 ```
 
-### 3. Start local LLM (optional — or use ModelScope API)
+All keys can alternatively be placed in a `.env` file at the project root.
 
-```bash
-# Build llama.cpp
-git clone https://github.com/ggerganov/llama.cpp && cd llama.cpp
-cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc
-cmake --build build --config Release -j$(nproc)
-
-# Start server (Qwen3-8B GGUF Q4_K_M)
-./build/bin/llama-server \
-    -m /path/to/Qwen3-8B-Q4_K_M.gguf \
-    --n-gpu-layers -1 --ctx-size 16384 \
-    --port 8000 --api-key local
-
-# Update config/settings.yaml: base_url: "http://localhost:8000/v1"
-```
-
-### 4. Ingest documents
+### 3. Ingest documents
 
 ```bash
 # FinQA
@@ -243,7 +236,7 @@ curl http://localhost:8080/ingest/a1b2c3d4
 ## Docker
 
 ```bash
-echo "MODELSCOPE_API_KEY=your_key" > .env
+cp .env.example .env   # fill in GOOGLE_API_KEY, PG_DSN
 docker compose up --build
 ```
 

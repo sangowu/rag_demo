@@ -40,6 +40,10 @@ class AgentState(TypedDict):
     should_retrieve: NotRequired[bool]
     should_rewrite: NotRequired[bool]  # planner 决策：是否需要 query rewriting
     rewritten_query: NotRequired[str]  # query rewriter 改写后的 query，用于 LangSmith 可观测
+    grounding_score: NotRequired[float]  # 检索结果最高 reranker score，用于 grounding check
+    refuse: NotRequired[bool]            # True → 证据不足，输出拒答
+    web_searched: NotRequired[bool]      # True → 已执行联网检索
+    trace: Annotated[list[dict], operator.add]  # 各节点决策日志，追加语义
     answer: NotRequired[str]
     reflection: NotRequired[str]
     final_answer: NotRequired[str]

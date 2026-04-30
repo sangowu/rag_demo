@@ -1,0 +1,734 @@
+{
+  "summary": {
+    "n": 50,
+    "seed": 42,
+    "refuse_rate": 0.16,
+    "exact_match": 0.0,
+    "contains_match": 0.02,
+    "avg_judge_score": 4.905,
+    "judge_pass_rate": 0.9762,
+    "avg_latency_ms": 2522.1,
+    "n_answered": 42,
+    "n_refused": 8
+  },
+  "rows": [
+    {
+      "question": "what is the growth rate of debt to capital ratio from 2006 to 2007?",
+      "gold": "0.10134",
+      "answer": "{'type': 'text', 'text': 'The growth rate of the debt-to-total-capital ratio from 2006 to 2007 is approximately 15.38%.\\n\\n**Supporting evidence:**\\n*   The debt-to-total-capital ratio was 30% at year-end 2007 and 26% at year-end 2006.\\n*   The growth rate is calculated as: ((30 - 26) / 26) * 100 = 15.38%.', 'extras': {'signature': 'EjQKMgEMOdbH0QVJQ1K8CHzq3meCFrzUrotXt3CHA5jyXzKr+/mP3t6GiSLS5rXa8feolwtB'}}\n\nSources: IP_2005_page_32.pdf, MMM_2007_page_39.pdf, SNA_2007_page_47.pdf, IP_2007_page_38.pdf",
+      "refused": false,
+      "grounding_score": 0.7925,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2741
+    },
+    {
+      "question": "in 2012 what was the percentage change in the gross unrecognized tax benefits",
+      "gold": "0.62995",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain enough information to calculate the percentage change in gross unrecognized tax benefits for 2012.\\n\\nWhile document [1] provides the total amount of unrecognized tax benefits for Morgan Stanley at the end of 2012 ($4.1 billion) and 2013 ($4.1 billion), it does not provide the 2011 year-end balance required to calculate a percentage change for 2012.', 'extras': {'signature': 'EjQKMgEMOdbHEftZuc1n73zuVxwmNOv85LaiDpuo/iud1SoKPC7p7JaZ4SwSGFJeLmrTC2nS'}}\n\nSources: MS_2014_page_292.pdf, JKHY_2010_page_50.pdf, AAL_2014_page_219.pdf, ADBE_2014_page_87.pdf, APD_2016_page_117.pdf",
+      "refused": false,
+      "grounding_score": 0.8813,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2599
+    },
+    {
+      "question": "what was the net change in the repurchase reserve between 2008 and 2009 , in millions?",
+      "gold": "407.0",
+      "answer": "{'type': 'text', 'text': 'The net change in the repurchase reserve between 2008 and 2009 was $407 million.\\n\\n**Supporting evidence:**\\nAccording to the table in context [3], the balance at the end of 2008 was $75 million and the balance at the end of 2009 was $482 million ($482 million - $75 million = $407 million).', 'extras': {'signature': 'EjQKMgEMOdbHQ9FTkv9blL0DCTl6wXlFbRuR5wDWVYsaaAkTh9oqSlBTCezP2QDijrlrB0lG'}}\n\nSources: C_2009_page_141.pdf, UNP_2009_page_89.pdf, SLB_2009_page_46.pdf, BLL_2007_page_35.pdf, C_2010_page_272.pdf",
+      "refused": false,
+      "grounding_score": 0.4668,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2825
+    },
+    {
+      "question": "what is the percentage increase in unrecognized tax benefits from jan 2008-dec 2008?",
+      "gold": "0.56609",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the unrecognized tax benefits for the period of January 2008 through December 2008.', 'extras': {'signature': 'EjQKMgEMOdbH3p3Wrr2m/Y3XUk3nHiLHFPVBHm4LtasNFByRTMHuv6D59Q7sSUNoZdUlkZ17'}}\n\nSources: AMT_2007_page_99.pdf, MS_2014_page_292.pdf, JKHY_2010_page_50.pdf, ADBE_2014_page_87.pdf",
+      "refused": false,
+      "grounding_score": 0.5708,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2457
+    },
+    {
+      "question": "if mr . fadell's gave his unvested restricted stock units to a girlfriend , would his wife have more than his girlfriend?",
+      "gold": "no",
+      "answer": "{'type': 'text', 'text': \"The provided context does not contain information regarding Mr. Fadell's marital status, his girlfriend, or the distribution of his restricted stock units. Therefore, it is impossible to answer this question.\", 'extras': {'signature': 'EjQKMgEMOdbHu8Jl06eXR40moLKuwWNxKQenqJTr05FW5R2QlWry9dYhu5qe99w3x8nhB5rW'}}\n\nSources: ",
+      "refused": false,
+      "grounding_score": null,
+      "exact_match": false,
+      "contains_match": true,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2335
+    },
+    {
+      "question": "if you include the balance of standby letters of credit to other financial institutions as of december 31 , 2013 , what would be the balance in billions of net outstanding standby letters of credit ?",
+      "gold": "13.8",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the balance of standby letters of credit as of December 31, 2013. \\n\\nThe documents only provide data for standby letters of credit for the years 2007 and 2008 (Context [1]).', 'extras': {'signature': 'EjQKMgEMOdbHZqmq5wnE4/a7RTfb/pOLr1qFD3wzyyWc9foDjBCxxdXvg7LKf2eJZCpqxm1A'}}\n\nSources: MS_2014_page_292.pdf, MMM_2013_page_48.pdf, STT_2008_page_116.pdf, C_2010_page_272.pdf, PNC_2013_page_232.pdf",
+      "refused": false,
+      "grounding_score": 0.2108,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2300
+    },
+    {
+      "question": "was the caribbean segment revenue increase greater than the south american growth ?",
+      "gold": "yes",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.048 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0481,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 901
+    },
+    {
+      "question": "what was the change in billions in remarketing programs between december 31 , 2013 and december 31 , 2012?",
+      "gold": "0.9",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding \"remarketing programs.\" Therefore, it is not possible to answer your question.', 'extras': {'signature': 'EjQKMgEMOdbHG85uytsYeFl5LFSe89+UkPt1dcVGSSeesfd3mt7ln7+5ibUw4pyiHuv4LJgZ'}}\n\nSources: MS_2014_page_292.pdf, PM_2014_page_112.pdf, RSG_2013_page_137.pdf, C_2010_page_272.pdf, PNC_2013_page_232.pdf",
+      "refused": false,
+      "grounding_score": 0.6895,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2406
+    },
+    {
+      "question": "what was the percentage change in the unrecognized tax benefits from 2011 to 2012?",
+      "gold": "-0.23364",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the unrecognized tax benefits for the year 2011, therefore the percentage change from 2011 to 2012 cannot be calculated.', 'extras': {'signature': 'EjQKMgEMOdbHyYJYNNpE9mg/vN5zCQwLiAPDRLiBYUGEBOFd2pXpn42TDkKzSHosQjeO9l8N'}}\n\nSources: MS_2014_page_292.pdf, JKHY_2010_page_50.pdf, AAL_2014_page_219.pdf, ADBE_2014_page_87.pdf, APD_2016_page_117.pdf",
+      "refused": false,
+      "grounding_score": 0.8813,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2224
+    },
+    {
+      "question": "for the year ending december 31 , 2008 , were principal payments greater than 2009?",
+      "gold": "yes",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding principal payments for the years 2008 or 2009.', 'extras': {'signature': 'EjQKMgEMOdbHHD+19e4zwxxYbMZEiRjnLXq0SipZSuGTO7ShQhr+Jb6xKTtYzeffFnV4GDoR'}}\n\nSources: ZBH_2008_page_84.pdf, UNP_2009_page_89.pdf, SLB_2009_page_46.pdf, AON_2010_page_52.pdf, C_2008_page_173.pdf",
+      "refused": false,
+      "grounding_score": 0.7231,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 4072
+    },
+    {
+      "question": "what portion of the 2011 plan repurchases were repurchased in 2012?",
+      "gold": "0.34512",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding a \"2011 plan\" or any repurchases made under such a plan in 2012.', 'extras': {'signature': 'EjQKMgEMOdbHy6rYHaCPo6eQGnahIwmaP1gKvEOn8LdzOWqjpJYNJws6/tmw++ZhqSFCGfeJ'}}\n\nSources: C_2009_page_141.pdf, AMT_2010_page_36.pdf, SLB_2009_page_46.pdf, AES_2012_page_223.pdf, PNC_2012_page_96.pdf",
+      "refused": false,
+      "grounding_score": 0.3589,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2704
+    },
+    {
+      "question": "what was the net change in other income from 2004 to 2005 in millions?",
+      "gold": "-27.0",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the net change in other income from 2004 to 2005.', 'extras': {'signature': 'EjQKMgEMOdbH+BnHeXNaX5SUHQVaOlisDgAtawowq96i0nhNrftkoo9l+7Lx0LzByl9Qs1j5'}}\n\nSources: IP_2005_page_32.pdf, ETR_2004_page_22.pdf, PKG_2005_page_29.pdf, ETR_2004_page_159.pdf",
+      "refused": false,
+      "grounding_score": 0.2212,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2278
+    },
+    {
+      "question": "what was the percentage change in the company 2019s cash and cash equivalents from june 302008 to 2009",
+      "gold": "0.80357",
+      "answer": "{'type': 'text', 'text': \"The provided context does not contain information regarding the company's cash and cash equivalents balance for June 30, 2008, or June 30, 2009, and therefore does not provide the data necessary to calculate a percentage change.\", 'extras': {'signature': 'EjQKMgEMOdbH2fEjygJruZYwx9eTmgWA1wgVhcfg6Zu1tdxEHc05Cb+UMoX0Q/WfJR1qf+tm'}}\n\nSources: JKHY_2010_page_50.pdf, MKTX_2009_page_79.pdf, SLB_2009_page_46.pdf, GIS_2008_page_83.pdf, C_2008_page_173.pdf",
+      "refused": false,
+      "grounding_score": 0.5361,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3008
+    },
+    {
+      "question": "what is the maximum variance during the quarter ended in september 31 , 2005?",
+      "gold": "4.18",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.024 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0243,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 4079
+    },
+    {
+      "question": "what would operating cash flow have been in 2010 without the changed accounting standards for the receivables securitization facility , in us$ million?",
+      "gold": "4505.0",
+      "answer": "{'type': 'text', 'text': 'Without the changed accounting standard, the operating cash flow in 2010 would have been $4,505 million.\\n\\nAccording to the provided context, the adoption of the new accounting standard in January 2010 reclassified the receivables securitization facility from an operating activity to a financing activity, which decreased cash provided by operating activities by $400 million. The reported cash provided by operating activities for 2010 was $4,105 million; adding back the $400 million adjustment results in $4,505 million.', 'extras': {'signature': 'EjQKMgEMOdbHhzqoegQ65yRqCZ7lkgkQ+wRPHtJFWq+7JgWCWeuWb08D7NXXCKNBJ2jebe5u'}}\n\nSources: UNP_2010_page_24.pdf, UNP_2012_page_39.pdf, UNP_2012_page_34.pdf",
+      "refused": false,
+      "grounding_score": 0.9473,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3353
+    },
+    {
+      "question": "how much of the provision was for non-consumer credit losses?",
+      "gold": "0.20538",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.049 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0492,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 1005
+    },
+    {
+      "question": "what percentage of the net proceeds came from the floating rates due in 2015 and 2016?",
+      "gold": "37.81139",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding net proceeds from floating rates due in 2015 and 2016. \\n\\nThe documents specify that ETBH formed trusts in 2006 and 2007, with the resulting junior subordinated debentures maturing in 2036 and 2037, respectively. There is no mention of floating rate issuances maturing in 2015 or 2016.', 'extras': {'signature': 'EjQKMgEMOdbHo7y/voulc3yAhVzkAp6/IqkRCIUqNZR2jSR9Ko0ZOZ3PwKoLLp1eTkxecyyB'}}\n\nSources: AES_2016_page_98.pdf, UNP_2015_page_35.pdf, MS_2015_page_200.pdf, ETFC_2007_page_123.pdf, UAA_2016_page_81.pdf",
+      "refused": false,
+      "grounding_score": 0.5708,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2749
+    },
+    {
+      "question": "what is the total number of containerboard mills and corrugated manufacturing operations?",
+      "gold": "48.0",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the total number of containerboard mills or corrugated manufacturing operations. \\n\\nWhile the text mentions that the company has \"126 major manufacturing sites\" in total, it does not provide a breakdown of these facilities by type.', 'extras': {'signature': 'EjQKMgEMOdbHp1gNnTFseASnPFSYW0wcrC+6CWl/TbVK+bJrFGMkfgIoQgDfuU6T8TewAui9'}}\n\nSources: ZBH_2008_page_84.pdf, APTV_2018_page_34.pdf, RSG_2013_page_137.pdf, PKG_2005_page_29.pdf, IP_2005_page_32.pdf",
+      "refused": false,
+      "grounding_score": 0.3269,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2522
+    },
+    {
+      "question": "in the fourth quarter of 2018 what was the percent of the shares bought in december",
+      "gold": "0.562",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the percentage of shares bought in December 2018. While the text mentions that the aggregate repurchase price of shares repurchased during the fourth quarter of 2018 was $0.8 billion, it does not provide a monthly breakdown of shares purchased for that period.', 'extras': {'signature': 'EjQKMgEMOdbHkoR9qn2WjQ3jnZL1tNodVmx/ZUYMn57mTjJOyhZYIMCjhjCN2ExbfxebdbUA'}}\n\nSources: LMT_2014_page_31.pdf, AMT_2010_page_36.pdf, PNC_2018_page_45.pdf, BKR_2018_page_59.pdf, IP_2018_page_50.pdf",
+      "refused": false,
+      "grounding_score": 0.5957,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2294
+    },
+    {
+      "question": "what was the percentage cumulative total shareholder return on disca for the five year period ended december 21 , 2013?",
+      "gold": "5.0208",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the percentage cumulative total shareholder return for DISCA.', 'extras': {'signature': 'EjQKMgEMOdbHWDVzgEc6j/SvjkyFOAxfy/D9OMASkitPxcHrxYX75tuahLCD2o5ADeX2Vtf+'}}\n\nSources: VLO_2013_page_24.pdf, EXPD_2018_page_27.pdf, UPS_2006_page_32.pdf, UNP_2007_page_22.pdf, CMCSA_2015_page_42.pdf",
+      "refused": false,
+      "grounding_score": 0.1982,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2574
+    },
+    {
+      "question": "unrecognized tax benefits change by what percent between 2016 and 2017?",
+      "gold": "0.91837",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain the information necessary to calculate the percentage change in unrecognized tax benefits between 2016 and 2017. While the documents provide the balance for 2016 ($106.9 million), they do not provide the specific balance for 2017.', 'extras': {'signature': 'EjQKMgEMOdbHj0zBnu//W9E0h4kmOc2mDidUJ5T8Unke4AG6BaXXIZTm+hTbWzzhpq0XRrsG'}}\n\nSources: IP_2018_page_83.pdf, HST_2017_page_142.pdf, APD_2016_page_117.pdf",
+      "refused": false,
+      "grounding_score": 0.7891,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2614
+    },
+    {
+      "question": "what percentage of total cruise guests in 2016 were not european?",
+      "gold": "72.74167",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.018 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0176,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 886
+    },
+    {
+      "question": "what was the percentage change in the net interest income from 2011 to 2012",
+      "gold": "0.10805",
+      "answer": "{'type': 'text', 'text': 'The net interest income decreased by 25% from 2011 to 2012.\\n\\nSupporting evidence: According to the provided text, \"net interest income on the consolidated statements of earnings was $ 3.88 billion for 2012 , 25% ( 25 % ) lower than 2011.\"', 'extras': {'signature': 'EjQKMgEMOdbHsXWuIizbi72hs1QEnjz3UOTWI+0x2FJ6hp6qb+a/LWuI10+FhYtAQw3WuNsp'}}\n\nSources: GS_2013_page_47.pdf, PNC_2012_page_96.pdf, UNP_2012_page_34.pdf, AES_2012_page_223.pdf, SNA_2012_page_84.pdf",
+      "refused": false,
+      "grounding_score": 0.9868,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2863
+    },
+    {
+      "question": "as of september 30 ,2014 what was the percent of the total average common and common equivalent shares outstanding 2014 assuming dilution that was dilute share equivalents from share-based plans",
+      "gold": "0.02231",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain the information necessary to calculate the percentage of diluted share equivalents from share-based plans as of September 30, 2014. \\n\\nWhile the documents provide data on share repurchases for late 2014 [1] and annual weighted average shares outstanding for 2013–2017 [3], they do not provide a breakdown of share-based plan equivalents or the specific diluted share count for the date of September 30, 2014.', 'extras': {'signature': 'EjQKMgEMOdbHvgS+hO/Exn1c7Tg94rl1JrCVB2gHhgoq6QEv8Iguct//8rYe+eehTmZa2njO'}}\n\nSources: ZBH_2008_page_84.pdf, LMT_2014_page_31.pdf, KMI_2014_page_114.pdf, EXPD_2017_page_30.pdf, ZBH_2007_page_81.pdf",
+      "refused": false,
+      "grounding_score": 0.5044,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3657
+    },
+    {
+      "question": "what was the percentage cumulative total shareowners 2019 returns for united parcel service inc . for the five years ended 12/31/10?",
+      "gold": "0.1057",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the cumulative total shareowner returns for United Parcel Service, Inc. for the five years ended 12/31/10. The available data for United Parcel Service, Inc. only covers the period from 12/31/01 through 12/31/06.', 'extras': {'signature': 'EjQKMgEMOdbHMyINAK/eY646kjzueAPtH3CjWNH9H8gItmv+gHAuK8JVhXrbJPNhi3CCkP0Y'}}\n\nSources: UPS_2006_page_32.pdf, EXPD_2017_page_30.pdf, PKG_2005_page_29.pdf, CMCSA_2015_page_42.pdf",
+      "refused": false,
+      "grounding_score": 0.9766,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2462
+    },
+    {
+      "question": "what is the percentage change in benefits obligations from 2018 to 2019?",
+      "gold": "-0.19355",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the percentage change in benefit obligations from 2018 to 2019. \\n\\nWhile the documents provide specific figures for expected payments of unfunded postemployment benefits and deferred compensation for fiscal years 2019 and 2020 [1, 4], and mention pension obligation figures for other specific years (such as 2017 and 2018 [5]), they do not provide a total benefit obligation figure for 2019 that would allow for a percentage change calculation.', 'extras': {'signature': 'EjQKMgEMOdbHzKRQVO3jF33VfvKPO9ZBcGr714JDmWaav/bfPgjvHvOdlt2ruPgqfXO0+yOt'}}\n\nSources: CE_2005_page_167.pdf, GIS_2018_page_43.pdf, AES_2012_page_223.pdf, GIS_2019_page_37.pdf, APD_2018_page_59.pdf",
+      "refused": false,
+      "grounding_score": 0.3496,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2851
+    },
+    {
+      "question": "what was the percentage difference of earnings per share 2013 basic pro forma compared to earnings per share 2013 diluted pro forma in 2005?",
+      "gold": "0.01067",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding \"pro forma\" earnings per share for 2013 or 2005.', 'extras': {'signature': 'EjQKMgEMOdbHuuUDadKlbgGXeM/Y7oubM5cpjyyUFODngM+zvDa3txq2pAAVMJtQoVEU0L0z'}}\n\nSources: ZBH_2008_page_84.pdf, EXPD_2017_page_30.pdf, ZBH_2007_page_81.pdf",
+      "refused": false,
+      "grounding_score": 0.6211,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3611
+    },
+    {
+      "question": "what was the percentage change in the backlog from 2013 to 2014",
+      "gold": "0.08333",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain the specific percentage change in the backlog from 2013 to 2014. It only states that the \"backlog decreased slightly in 2014 compared to 2013.\"', 'extras': {'signature': 'EjQKMgEMOdbHUB3B4J7UjV/IT2Ju5eVVdW6Rf/E6jwTNr49gCZhW5HH9tSTBj+Teyjs4ynSY'}}\n\nSources: LMT_2014_page_46.pdf, LMT_2015_page_53.pdf, STT_2014_page_69.pdf, CMCSA_2015_page_62.pdf",
+      "refused": false,
+      "grounding_score": 0.8853,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2462
+    },
+    {
+      "question": "from 2014 to 2016 , what was the total amount of money they can deduct from their future income tax due to amortization?",
+      "gold": "103.7",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the total amount of money the company can deduct from future income tax due to amortization from 2014 to 2016. \\n\\nWhile the text mentions that the Brazilian federal revenue service challenged the deductibility of goodwill amortization from a 2007 acquisition, it does not provide a total deductible amount for the 2014–2016 period.', 'extras': {'signature': 'EjQKMgEMOdbHCkU9pzCv5PRKLkIbR/b4VXtgWZty68ZGUSZSg+fzqCvakA2YjYxcC3Sagbs9'}}\n\nSources: AES_2016_page_98.pdf, CMCSA_2015_page_62.pdf, ETR_2016_page_315.pdf, IP_2018_page_83.pdf, INTC_2013_page_50.pdf",
+      "refused": false,
+      "grounding_score": 0.1528,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2517
+    },
+    {
+      "question": "what was the anticipated balance of in unrecognized tax benefits in 2008 in millions",
+      "gold": "12.1",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the anticipated balance of unrecognized tax benefits in 2008.', 'extras': {'signature': 'EjQKMgEMOdbHQPALSvBKbix2XcBD5KNI02PuO3SSafZ9gy74N2QwMvzMCVHK4fOp4pM5KelS'}}\n\nSources: AMT_2007_page_99.pdf, MS_2014_page_292.pdf, JKHY_2010_page_50.pdf, ADBE_2014_page_87.pdf",
+      "refused": false,
+      "grounding_score": 0.6523,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 1,
+        "reason": "parse error",
+        "passed": false
+      },
+      "latency_ms": 2913
+    },
+    {
+      "question": "what is the roi of an investment in fidelity national information services from 2007 to 2008?",
+      "gold": "-0.2992",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.063 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0635,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 967
+    },
+    {
+      "question": "in 2013 what was the ratio of the basel iii tier 1 common capital to the basel i tier 1 common capital",
+      "gold": "0.96391",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the ratio of Basel III tier 1 common capital to Basel I tier 1 common capital for 2013.', 'extras': {'signature': 'EjQKMgEMOdbHlrZfRUQsPtog+hp+uzIQvGY32DIlU+QUdAdbdcsNQL2coAVz8bYiBQl8bv6Y'}}\n\nSources: JPM_2008_page_194.pdf, GS_2013_page_193.pdf",
+      "refused": false,
+      "grounding_score": 0.6011,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2811
+    },
+    {
+      "question": "what was the gross margin change in basis points for south america?",
+      "gold": "80.0",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the gross margin change for South America.', 'extras': {'signature': 'EjQKMgEMOdbHjQXg99WFrmsJJ9SMx9G+BJ9GrZcgnuF3gntoiof6kgJ1UfprV+DV2fLwDY9x'}}\n\nSources: UAA_2018_page_40.pdf, LLY_2018_page_42.pdf, UAA_2016_page_81.pdf, IP_2005_page_32.pdf, UA_2015_page_42.pdf",
+      "refused": false,
+      "grounding_score": 0.2306,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2286
+    },
+    {
+      "question": "in 2017 what was the percentage change in the net revenue",
+      "gold": "0.05007",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the percentage change in net revenue for the year 2017.', 'extras': {'signature': 'EjQKMgEMOdbHaow+Y5ARtFwb8PYIE0tI1N50rGj/g+HK8JQ53c+DUFdL+F8kHP6m5hHLZZcS'}}\n\nSources: UAA_2018_page_40.pdf, AWK_2017_page_136.pdf, IP_2018_page_83.pdf, MS_2017_page_57.pdf, ETR_2016_page_18.pdf",
+      "refused": false,
+      "grounding_score": 0.4365,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2457
+    },
+    {
+      "question": "what was the percentage change in industry segment operating profits from 2005 to 2006?",
+      "gold": "0.27867",
+      "answer": "{'type': 'text', 'text': 'Based on the provided context, the percentage changes in operating profits for the specified segments from 2005 to 2006 were:\\n\\n*   **Aeronautics:** Operating profit increased by 20% [1].\\n*   **Electronic Systems:** Operating profit increased by 17% [2].\\n\\nThe provided documents do not contain information regarding the percentage change in operating profits for the other segments mentioned (such as consumer foods or food and ingredients) from 2005 to 2006.', 'extras': {'signature': 'EjQKMgEMOdbHeBPJ48DyPGRObte8SA+xIdLMEHjsCo1PvNuDJLHa1E+jRMxVICCLcjgZTWr1'}}\n\nSources: LMT_2010_page_36.pdf, CAG_2007_page_42.pdf, LMT_2007_page_55.pdf, ZBH_2007_page_81.pdf",
+      "refused": false,
+      "grounding_score": 0.8311,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3280
+    },
+    {
+      "question": "what percentage of long-term financing was classified as current at the end of 2005?",
+      "gold": "0.04488",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the percentage of long-term financing classified as current at the end of 2005.', 'extras': {'signature': 'EjQKMgEMOdbHKrnSIUG+T053GLjBsPpc7HnPjWUSO8kHqVZaSLayr71lpMOcfH3C3FN0WuSj'}}\n\nSources: IP_2005_page_32.pdf, MS_2015_page_200.pdf, AMT_2004_page_81.pdf, IP_2007_page_38.pdf",
+      "refused": false,
+      "grounding_score": 0.5005,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2179
+    },
+    {
+      "question": "what is the growth rate in based rent for hudson yards , new york facility in the third period?",
+      "gold": "0.13793",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.002 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0018,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 1195
+    },
+    {
+      "question": "what portion of the securitization bonds issued by entergy gulf states reconstruction funding has a maturity date in 2022?",
+      "gold": "0.34719",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding a company named \"Entergy Gulf States Reconstruction Funding\" or the maturity dates of any securitization bonds in 2022.', 'extras': {'signature': 'EjQKMgEMOdbHpQXGuyu2o8cAJD4UFGISmDFqXWit8hv5y7hZY2nxCLFG/2ToWX79wQyW5tJO'}}\n\nSources: ETR_2011_page_324.pdf, ETR_2016_page_175.pdf, ETR_2011_page_377.pdf, ETR_2017_page_441.pdf, ETR_2017_page_26.pdf",
+      "refused": false,
+      "grounding_score": 0.4062,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2687
+    },
+    {
+      "question": "what percent of total operating revenues in 2018 were industrial?",
+      "gold": "0.24873",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the percentage of total operating revenues that were industrial in 2018.', 'extras': {'signature': 'EjQKMgEMOdbHb/Nqd6mViGzcZwH7wVufv45WzdfMy4E7rg4oV357aK3XncnwhFWOOF5JQhML'}}\n\nSources: UAA_2018_page_40.pdf, IP_2018_page_50.pdf, UNP_2015_page_35.pdf",
+      "refused": false,
+      "grounding_score": 0.3196,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3329
+    },
+    {
+      "question": "what is the percent change in annual long-term debt maturities ( excluding lease obligations ) and annual cash sinking fund requirements for debt outstanding from 2005 to 2004?",
+      "gold": "0.71179",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain the information necessary to calculate the percent change in annual long-term debt maturities or annual cash sinking fund requirements from 2005 to 2004. \\n\\nWhile the documents provide some financial data for various years (such as a table of long-term debt maturities for 2008–2012 and \"thereafter\" in source [2]), they do not provide specific annual maturity or sinking fund data for 2004 or 2005.', 'extras': {'signature': 'EjQKMgEMOdbHoaCgEAVO/2s0GJ9gUdTqLor6ZM5dwJHsefjGK2JIG+1xP9cNQH3KQyY7TBOz'}}\n\nSources: IP_2007_page_38.pdf, GIS_2018_page_43.pdf, HIG_2016_page_250.pdf, IP_2005_page_32.pdf, CAG_2008_page_47.pdf",
+      "refused": false,
+      "grounding_score": 0.2739,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2704
+    },
+    {
+      "question": "what was the company's share of the value of the 521 fifth avenue acquisition based on the transaction cost?",
+      "gold": "122604300.0",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.015 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0146,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 897
+    },
+    {
+      "question": "what is the expected growth rate in operating leases from 2020 to 2021?",
+      "gold": "0.00689",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain enough information to calculate a single expected growth rate for operating leases from 2020 to 2021, as the documents provide conflicting data for different entities:\\n\\n*   **Table [1]:** Shows a decrease from $20 million in 2020 to $10 million in 2021 (a 50% decrease).\\n*   **Table [2]:** Shows an increase from $1,888,000 in 2020 to $1,901,000 in 2021 (an approximate 0.69% increase).\\n*   **Table [3]:** Groups 2021 with 2022, providing no specific data for 2021 alone.', 'extras': {'signature': 'EjQKMgEMOdbHr/DlzJN+Qy+MU3wWTiCBX4CIXzCPsqtGgTBGsgdaCgRvaa829TN+l96wlitj'}}\n\nSources: GIS_2019_page_37.pdf, AAPL_2015_page_68.pdf, ABMD_2018_page_112.pdf, HIG_2016_page_253.pdf, HST_2017_page_142.pdf",
+      "refused": false,
+      "grounding_score": 0.5518,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2856
+    },
+    {
+      "question": "what was the percentage change in the gross unrecognized tax benefits in 2010",
+      "gold": "1.2463",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain enough information to calculate the percentage change in gross unrecognized tax benefits for 2010. \\n\\nWhile the documents provide the total unrecognized tax benefits for 2010 ($7,187) and 2009 ($5,518) for one specific company [1], they do not provide the \"gross\" unrecognized tax benefits for that year, nor do they provide the necessary data for other entities mentioned in the text to perform such a calculation.', 'extras': {'signature': 'EjQKMgEMOdbHmoMMvAvq+igcvKoAx4av3R5fnhiuCWESnNfDWiYy1Y2cJAF5G0NoBmLCUVSW'}}\n\nSources: MS_2014_page_292.pdf, JKHY_2010_page_50.pdf, ADBE_2014_page_87.pdf, PPG_2011_page_70.pdf",
+      "refused": false,
+      "grounding_score": 0.8965,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2552
+    },
+    {
+      "question": "the change in retail electric price accounts for what percent of revenue increase?",
+      "gold": "0.66495",
+      "answer": "{'type': 'text', 'text': 'Based on the provided context, the retail electric price variance accounts for approximately 29.6% of the revenue increase for the 2009–2010 period.\\n\\n**Supporting Evidence:**\\n*   **2009–2010 Period:** According to table [5], the 2009 net revenue was $485.1 million and the 2010 net revenue was $540.2 million, resulting in a total revenue increase of $55.1 million. The retail electric price variance is listed as $16.3 million. ($16.3 million / $55.1 million = 29.58%).\\n\\nThe provided documents do not contain sufficient information to calculate this percentage for other periods mentioned (such as the 2015–2016 period in table [4]), as the total revenue increase is provided, but the specific components of that increase (other than the retail electric price) are not fully detailed.', 'extras': {'signature': 'EjQKMgEMOdbHY+0nSPy5H63fAv9zt5jcNsMJtOCynD1e3YDD794AFbWEIhSdHkMQjZ2LUiWI'}}\n\nSources: ETR_2009_page_21.pdf, ETR_2016_page_315.pdf, ETR_2011_page_377.pdf",
+      "refused": false,
+      "grounding_score": 0.8008,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2932
+    },
+    {
+      "question": "what was the ratio of the derivative receivables reported on the consolidated balance sheets for 2016 to 2017",
+      "gold": "1.13451",
+      "answer": "{'type': 'text', 'text': 'The ratio of derivative receivables reported on the consolidated balance sheets for 2016 to 2017 is approximately 1.135 to 1.\\n\\n**Supporting evidence:**\\nAccording to the provided context, derivative receivables were $64.1 billion in 2016 and $56.5 billion in 2017. The ratio is calculated as $64.1 billion / $56.5 billion ≈ 1.135.', 'extras': {'signature': 'EjQKMgEMOdbHa3Z3P5nMdzC4GyxtgDnls/rYuJpREJ3xp9nBSwg/vAZX6c0kXZcgEWLOkQeS'}}\n\nSources: KHC_2017_page_21.pdf, AES_2016_page_98.pdf, FIS_2016_page_64.pdf, JPM_2017_page_144.pdf",
+      "refused": false,
+      "grounding_score": 0.9951,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2178
+    },
+    {
+      "question": "what is the percent change in number of shares purchased by employees between 2008 and 2009?",
+      "gold": "0.55556",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding the number of shares purchased by employees in 2008 or 2009, and therefore the percent change cannot be calculated. \\n\\nWhile the context provides data on total shares repurchased by the company in 2008 and 2009 [3], it does not specify the portion of those shares purchased by employees.', 'extras': {'signature': 'EjQKMgEMOdbHK5ZpiwJTtObwHp3Q7UFF/ITiitV907jlQPCdIIBD8vDmxst9kOt+Nqbof1RK'}}\n\nSources: SLB_2009_page_46.pdf, UNP_2007_page_22.pdf, JKHY_2010_page_50.pdf, ZBH_2008_page_84.pdf",
+      "refused": false,
+      "grounding_score": 0.6089,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3340
+    },
+    {
+      "question": "by how much did proved bitumen reserves decrease during 2008?",
+      "gold": "-0.07838",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain information regarding proved bitumen reserves or their changes during 2008.', 'extras': {'signature': 'EjQKMgEMOdbHJIeeTlp0gqyw9mBMa7nzSoqr0iUzCO2OjRv18wgr4s73Ia0S+oL1p4lt5tRV'}}\n\nSources: C_2008_page_173.pdf, MRO_2018_page_111.pdf, OKE_2008_page_73.pdf, SLB_2009_page_46.pdf",
+      "refused": false,
+      "grounding_score": 0.313,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2584
+    },
+    {
+      "question": "in 2010 what was the net change in net revenue in millions",
+      "gold": "19.2",
+      "answer": "{'type': 'text', 'text': 'The net change in net revenue from 2009 to 2010 was $55.1 million.\\n\\n**Supporting Evidence:**\\nAccording to the table in context [2], the 2009 net revenue was $485.1 million and the 2010 net revenue was $540.2 million, resulting in an increase of $55.1 million.', 'extras': {'signature': 'EjQKMgEMOdbH6CFn1hlvR7ZNIXWg0tURMyB+t+3FoB/h08aSWXbakv0oc1BXd3ufj97RStx9'}}\n\nSources: ETR_2017_page_26.pdf, ETR_2011_page_377.pdf, ETR_2016_page_18.pdf, UNP_2012_page_34.pdf",
+      "refused": false,
+      "grounding_score": 0.751,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 3266
+    },
+    {
+      "question": "what is the average operating income?",
+      "gold": "295.0",
+      "answer": "{'type': 'text', 'text': 'The provided context does not contain enough information to calculate the average operating income. While the documents provide specific operating earnings or profit figures for certain segments and years (e.g., North American, Brazilian, and European papers in 2009), they do not provide a comprehensive total operating income for the company across all segments and years required to determine an average.', 'extras': {'signature': 'EjQKMgEMOdbHioGVbK6CAqI0To6wK8RhbDJWt5At2CVq2pkTQ3ag5unj9mCsUVv25DRy2nhG'}}\n\nSources: ZBH_2008_page_84.pdf, GS_2013_page_47.pdf, IP_2009_page_36.pdf, AON_2011_page_134.pdf, IP_2018_page_50.pdf",
+      "refused": false,
+      "grounding_score": 0.2297,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": {
+        "score": 5,
+        "reason": "parse error",
+        "passed": true
+      },
+      "latency_ms": 2351
+    },
+    {
+      "question": "what is the difference between firth rixson's goodwill and the rti's?",
+      "gold": "1503.0",
+      "answer": "I was unable to find sufficient evidence in the document library to answer this question. (grounding score: 0.003 < threshold 0.100)\n\nPlease try rephrasing your question or check if the relevant documents have been indexed.",
+      "refused": true,
+      "grounding_score": 0.0028,
+      "exact_match": false,
+      "contains_match": false,
+      "judge": null,
+      "latency_ms": 991
+    }
+  ]
+}
